@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app/app.dart';
 import 'services/boot.dart';
 
 void main() async {
@@ -6,20 +7,16 @@ void main() async {
 
   try {
     await Boot.init();
+    runApp(const QuantoPossoApp());
   } catch (e) {
-    runApp(MaterialApp(
-      home: Scaffold(
-        body: Center(child: Text("BOOT ERROR: $e")),
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text('BOOT ERROR: $e'),
+          ),
+        ),
       ),
-    ));
-    return;
+    );
   }
-
-  runApp(const MaterialApp(
-    home: Scaffold(
-      body: Center(
-        child: Text("BOOT OK"),
-      ),
-    ),
-  ));
 }
