@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
+import 'services/boot.dart';
 
-void main() {
-  runApp(
-    const MaterialApp(
-      debugShowCheckedModeBanner: false,
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Boot.init();
+  } catch (e) {
+    runApp(MaterialApp(
       home: Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: Text(
-            'PRIMA VERSIONE OK',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-        ),
+        body: Center(child: Text("BOOT ERROR: $e")),
+      ),
+    ));
+    return;
+  }
+
+  runApp(const MaterialApp(
+    home: Scaffold(
+      body: Center(
+        child: Text("BOOT OK"),
       ),
     ),
-  );
+  ));
 }
