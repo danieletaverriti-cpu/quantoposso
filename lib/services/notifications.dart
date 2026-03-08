@@ -36,82 +36,89 @@ class NotificationsService {
   }
 
   Future<void> init(FlutterLocalNotificationsPlugin plugin) async {
-    _plugin = plugin;
+  _plugin = plugin;
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidInit);
+  const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const iosInit = DarwinInitializationSettings(
+    requestAlertPermission: true,
+    requestBadgePermission: true,
+    requestSoundPermission: true,
+  );
 
-    // ✅ NELLA TUA VERSIONE: è "settings:", NON "initializationSettings:"
-    await _plugin.initialize(
-      settings: initSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse r) async {
-        try {
-          final handler = _onTap;
-          if (handler != null) await handler(r.payload);
-        } catch (_) {}
-      },
+  const initSettings = InitializationSettings(
+    android: androidInit,
+    iOS: iosInit,
+  );
+
+  await _plugin.initialize(
+    settings: initSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse r) async {
+      try {
+        final handler = _onTap;
+        if (handler != null) await handler(r.payload);
+      } catch (_) {}
+    },
+  );
+
+  final android = _plugin.resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin>();
+
+  if (android != null) {
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _morningChannelId,
+        'Budget mattina',
+        description: 'Notifica del budget giornaliero al mattino',
+        importance: Importance.defaultImportance,
+      ),
     );
 
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _dailyChannelId,
+        'Promemoria budget',
+        description: 'Promemoria con budget di oggi',
+        importance: Importance.defaultImportance,
+      ),
+    );
 
-    if (android != null) {
-      await android.createNotificationChannel(
-        const AndroidNotificationChannel(
-          _morningChannelId,
-          'Budget mattina',
-          description: 'Notifica del budget giornaliero al mattino',
-          importance: Importance.defaultImportance,
-        ),
-      );
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _eveningChannelId,
+        'Esito giornata',
+        description: 'Complimenti se sei in budget, avviso se sfori',
+        importance: Importance.defaultImportance,
+      ),
+    );
 
-      // Legacy daily (usato da state.dart)
-await android.createNotificationChannel(
-  const AndroidNotificationChannel(
-    _dailyChannelId,
-    'Promemoria budget',
-    description: 'Promemoria con budget di oggi',
-    importance: Importance.defaultImportance,
-  ),
-);
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _expenseChannelId,
+        'Promemoria spese',
+        description: 'Promemoria per inserire le spese della giornata',
+        importance: Importance.defaultImportance,
+      ),
+    );
 
-      await android.createNotificationChannel(
-        const AndroidNotificationChannel(
-          _eveningChannelId,
-          'Esito giornata',
-          description: 'Complimenti se sei in budget, avviso se sfori',
-          importance: Importance.defaultImportance,
-        ),
-      );
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _testChannelId,
+        'Test',
+        description: 'Canale test notifiche',
+        importance: Importance.high,
+      ),
+    );
 
-      await android.createNotificationChannel(
-        const AndroidNotificationChannel(
-          _expenseChannelId,
-          'Promemoria spese',
-          description: 'Promemoria per inserire le spese della giornata',
-          importance: Importance.defaultImportance,
-        ),
-      );
-
-      await android.createNotificationChannel(
-        const AndroidNotificationChannel(
-          _testChannelId,
-          'Test',
-          description: 'Canale test notifiche',
-          importance: Importance.high,
-        ),
-      );
-
-      await android.createNotificationChannel(
-        const AndroidNotificationChannel(
-          _debugChannelId,
-          'Debug schedule',
-          description: 'Canale debug schedulazione',
-          importance: Importance.high,
-        ),
-      );
-    }
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _debugChannelId,
+        'Debug schedule',
+        description: 'Canale debug schedulazione',
+        importance: Importance.high,
+      ),
+    );
   }
+}
 
   // ✅ permessi (Android 13+ / iOS)
   Future<void> requestPermissionsIfNeeded() async {
