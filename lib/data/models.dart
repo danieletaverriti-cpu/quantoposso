@@ -141,7 +141,7 @@ class SettingsModel {
   final bool dailyReminderEnabled;
   final int dailyReminderHour;
   final int dailyReminderMinute;
-
+  final int paydayDay;
   /// Risparmio mensile
   final double monthlySaving;
 
@@ -177,6 +177,8 @@ class SettingsModel {
     this.dailyReminderHour = 20,
     this.dailyReminderMinute = 0,
 
+   //stpendio
+   this.paydayDay = 28,
     // app
     this.monthlySaving = 300,
 
@@ -213,6 +215,7 @@ class SettingsModel {
 
         // app
         'monthlySaving': monthlySaving,
+        'paydayDay' : paydayDay,
 
         // notifiche
         'morningBudgetEnabled': morningBudgetEnabled,
@@ -250,6 +253,7 @@ class SettingsModel {
 
         // app
         monthlySaving: ((m['monthlySaving'] as num?) ?? 300).toDouble(),
+        paydayDay: (m['paydayDay'] as int?) ?? 10,
 
         // notifiche
         morningBudgetEnabled: (m['morningBudgetEnabled'] as bool?) ?? true,
@@ -285,6 +289,7 @@ class SettingsModel {
 
     // app
     double? monthlySaving,
+    int? paydayDay,
 
     // notifiche
     bool? morningBudgetEnabled,
@@ -326,6 +331,7 @@ class SettingsModel {
 
       // app
       monthlySaving: monthlySaving ?? this.monthlySaving,
+      paydayDay: paydayDay ?? this.paydayDay,
 
       // notifiche
       morningBudgetEnabled: morningBudgetEnabled ?? this.morningBudgetEnabled,

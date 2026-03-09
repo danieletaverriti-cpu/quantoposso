@@ -266,7 +266,7 @@ void openAdd({required int mode}) {
               ),
               _drawerTile(
                 icon: Icons.lock_rounded,
-                title: 'Spese fisse',
+                title: 'Uscite fisse',
                 onTap: () {
                   Navigator.pop(context);
                   _go(3);

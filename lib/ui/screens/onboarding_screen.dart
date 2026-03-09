@@ -24,6 +24,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String _goal = 'Auto';
 
   double _monthlySaving = 300;
+  double _paydayDay = 28;
   bool _saving = false;
 
   @override
@@ -32,6 +33,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     final s = widget.state.settings;
     _monthlySaving = s.monthlySaving;
+    _paydayDay = s.paydayDay.toDouble();
 
     if ((s.profileName ?? '').trim().isNotEmpty) {
       _nameCtrl.text = s.profileName!.trim();
@@ -66,6 +68,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       s.copyWith(
         onboardingCompleted: true,
         monthlySaving: _monthlySaving,
+        paydayDay: _paydayDay.round(),
         profileName: name,
       ),
     );
@@ -236,6 +239,99 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             }),
                             onSlider: (v) => setState(() => _monthlySaving = v),
                           ),
+                          const SizedBox(height: 16),
+
+Container(
+  padding: const EdgeInsets.all(14),
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(22),
+    gradient: const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFFF8FAFF), Color(0xFFF4F6FA)],
+    ),
+    border: Border.all(
+      color: theme.dividerColor.withValues(alpha: 0.35),
+    ),
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Quando ricevi di solito lo stipendio?',
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        'Ci serve per stimare il ciclo del budget.',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          height: 1.3,
+        ),
+      ),
+      const SizedBox(height: 14),
+      Row(
+        children: [
+          Text(
+            'Giorno ${_paydayDay.round()}',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const Spacer(),
+          _RoundIconButton(
+            icon: Icons.remove_rounded,
+            onTap: () => setState(() {
+              _paydayDay = (_paydayDay - 1).clamp(1, 31);
+            }),
+          ),
+          const SizedBox(width: 8),
+          _RoundIconButton(
+            icon: Icons.add_rounded,
+            onTap: () => setState(() {
+              _paydayDay = (_paydayDay + 1).clamp(1, 31);
+            }),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      SliderTheme(
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: 6,
+          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+        ),
+        child: Slider(
+          min: 1,
+          max: 31,
+          divisions: 30,
+          value: _paydayDay.clamp(1, 31),
+          label: _paydayDay.round().toString(),
+          onChanged: (v) => setState(() => _paydayDay = v),
+        ),
+      ),
+      Row(
+        children: [
+          Text(
+            '1',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '31',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+),
                           const SizedBox(height: 20),
                           SizedBox(
                             width: double.infinity,
