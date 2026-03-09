@@ -2,14 +2,12 @@ class BudgetSnapshot {
   final double monthBudget;
   final double monthRemaining;
 
-  final double dayAllowance;     // media da oggi a fine mese
-  final double weekRemaining;    // quota giornaliera * giorni rimasti settimana
+  final double dayAllowance; // media da oggi a fine ciclo
+  final double weekRemaining; // quota giornaliera * giorni rimasti settimana
 
-  // ✅ nuovo (usato da boot/settings): “quanto resta oggi”
-  // per ora lo facciamo coincidere con dayAllowance (budget giornaliero)
   final double todayRemaining;
 
-  final int remainingDaysInMonth;
+  final int remainingDaysInMonth; // per compatibilità: ora = giorni rimasti nel ciclo
   final int remainingDaysInWeek;
 
   const BudgetSnapshot({
@@ -24,18 +22,17 @@ class BudgetSnapshot {
 }
 
 class BudgetMath {
-  static DateTime _endOfMonth(DateTime d) =>
-      DateTime(d.year, d.month + 1, 0, 23, 59, 59);
-
   static DateTime _startOfWeek(DateTime d) {
     final day = DateTime(d.year, d.month, d.day);
-    final diff = day.weekday - DateTime.monday; // lunedì=1
+    final diff = day.weekday - DateTime.monday;
     return day.subtract(Duration(days: diff));
   }
 
   static DateTime _endOfWeek(DateTime d) {
     final start = _startOfWeek(d);
-    return start.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+    return start.add(
+      const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+    );
   }
 
   static double _r2(double v) => double.parse(v.toStringAsFixed(2));
@@ -47,7 +44,11 @@ class BudgetMath {
     required double goalMonthlySaving,
     required double variableSpentThisMonth,
 
-    // ✅ nuovo ma opzionale: così non rompe le chiamate esistenti
+    // nuovi: ciclo stipendio
+    int? cycleTotalDays,
+    int? cycleRemainingDays,
+
+    // opzionale
     double variableSpentToday = 0.0,
   }) {
     final now = DateTime(today.year, today.month, today.day);
@@ -55,12 +56,11 @@ class BudgetMath {
     final monthBudget = monthlyIncome - fixedExpensesTotal - goalMonthlySaving;
     final monthRemaining = monthBudget - variableSpentThisMonth;
 
-    final endMonth = _endOfMonth(now);
-    final remainingDaysInMonth = endMonth.difference(now).inDays + 1;
+    final remainingDaysInCycle = (cycleRemainingDays ?? 1) <= 0
+        ? 1
+        : cycleRemainingDays!;
 
-    final dayAllowance = remainingDaysInMonth > 0
-        ? (monthRemaining / remainingDaysInMonth)
-        : 0.0;
+    final dayAllowance = monthRemaining / remainingDaysInCycle;
 
     final endWeek = _endOfWeek(now);
     final remainingDaysInWeek = endWeek.difference(now).inDays + 1;
@@ -68,16 +68,13 @@ class BudgetMath {
     final weekRemaining = dayAllowance * remainingDaysInWeek;
 
     return BudgetSnapshot(
-  monthBudget: _r2(monthBudget),
-  monthRemaining: _r2(monthRemaining),
-  dayAllowance: _r2(dayAllowance),
-  weekRemaining: _r2(weekRemaining),
-
-  // ✅ nuovo
-  todayRemaining: _r2(dayAllowance),
-
-  remainingDaysInMonth: remainingDaysInMonth,
-  remainingDaysInWeek: remainingDaysInWeek,
-);
+      monthBudget: _r2(monthBudget),
+      monthRemaining: _r2(monthRemaining),
+      dayAllowance: _r2(dayAllowance),
+      weekRemaining: _r2(weekRemaining),
+      todayRemaining: _r2(dayAllowance - variableSpentToday),
+      remainingDaysInMonth: remainingDaysInCycle,
+      remainingDaysInWeek: remainingDaysInWeek,
+    );
   }
 }

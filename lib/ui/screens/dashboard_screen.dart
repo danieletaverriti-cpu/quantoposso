@@ -7,6 +7,9 @@ import 'package:intl/intl.dart';
 import 'package:quantoposso/app/state.dart';
 import 'package:quantoposso/services/budget_math.dart';
 import '../widgets/month_overview_chart.dart';
+import '../../services/salary_cycle.dart';
+
+
 
 class DashboardScreen extends StatelessWidget {
   final AppState state;
@@ -103,29 +106,48 @@ class DashboardScreen extends StatelessWidget {
         final profileName = (state.profile?.name ?? '').trim();
 
         final now = DateTime.now();
-        final monthStart = DateTime(now.year, now.month, 1);
-        final nextMonthStart = (now.month == 12)
-            ? DateTime(now.year + 1, 1, 1)
-            : DateTime(now.year, now.month + 1, 1);
 
-        final incomeTotal = state.incomes
-            .where(
-              (i) =>
-                  i.date.isAfter(monthStart.subtract(const Duration(seconds: 1))) &&
-                  i.date.isBefore(nextMonthStart),
-            )
-            .fold<double>(0.0, (sum, i) => sum + i.amount);
+final cycle = SalaryCycleService.estimateCycle(
+  today: now,
+  paydayDay: state.settings.paydayDay,
+);
 
-        final spentThisMonth = state.expenses
-            .where(
-              (e) =>
-                  e.date.isAfter(monthStart.subtract(const Duration(seconds: 1))) &&
-                  e.date.isBefore(nextMonthStart),
-            )
-            .fold<double>(0.0, (sum, e) => sum + e.amount);
+String two(int n) => n.toString().padLeft(2, '0');
+
+final cycleLabel =
+    '${two(cycle.start.day)}/${two(cycle.start.month)} → ${two(cycle.end.day)}/${two(cycle.end.month)}';
+
+final cycleStart = DateTime(
+  cycle.start.year,
+  cycle.start.month,
+  cycle.start.day,
+);
+final cycleEndExclusive = DateTime(
+  cycle.end.year,
+  cycle.end.month,
+  cycle.end.day,
+).add(const Duration(days: 1));
+
+       final incomeTotal = state.incomes
+    .where(
+      (i) =>
+          !i.date.isBefore(cycleStart) &&
+          i.date.isBefore(cycleEndExclusive),
+    )
+    .fold<double>(0.0, (sum, i) => sum + i.amount);
+
+      final spentThisCycle = state.expenses
+    .where(
+      (e) =>
+          !e.date.isBefore(cycleStart) &&
+          e.date.isBefore(cycleEndExclusive),
+    )
+    .fold<double>(0.0, (sum, e) => sum + e.amount);
 
         final todayStart = DateTime(now.year, now.month, now.day);
         final tomorrowStart = todayStart.add(const Duration(days: 1));
+        final remainingDaysInCycle =
+    cycle.end.difference(todayStart).inDays + 1;
         final spentToday = state.expenses
             .where(
               (e) =>
@@ -139,23 +161,29 @@ class DashboardScreen extends StatelessWidget {
 
         final saving = state.settings.monthlySaving.toDouble();
 
-        final snap = BudgetMath.compute(
-          today: now,
-          monthlyIncome: incomeTotal,
-          fixedExpensesTotal: fixedTotal,
-          goalMonthlySaving: saving,
-          variableSpentThisMonth: spentThisMonth,
-        );
+        final cycleTotalDays = cycle.end.difference(cycle.start).inDays + 1;
+        final cycleRemainingDays = cycle.end.difference(todayStart).inDays + 1;
 
-        final daysLeft =
-            snap.remainingDaysInMonth <= 0 ? 1 : snap.remainingDaysInMonth;
+       final snap = BudgetMath.compute(
+  today: now,
+  monthlyIncome: incomeTotal,
+  fixedExpensesTotal: fixedTotal,
+  goalMonthlySaving: saving,
+  variableSpentThisMonth: spentThisCycle,
+  cycleTotalDays: cycleTotalDays,
+  cycleRemainingDays: cycleRemainingDays,
+  variableSpentToday: spentToday,
+);
+
+      final daysLeft = remainingDaysInCycle <= 0 ? 1 : remainingDaysInCycle;
+
         final dayAllowance = snap.dayAllowance;
         final remainingToday = dayAllowance - spentToday;
 
         final variableBudget = snap.monthBudget;
         final monthProgress = variableBudget <= 0
             ? 0.0
-            : (spentThisMonth / variableBudget).clamp(0.0, 1.0);
+            : (spentThisCycle / variableBudget).clamp(0.0, 1.0);
 
         final noIncome = incomeTotal == 0;
         final isOver = remainingToday < 0;
@@ -209,7 +237,7 @@ class DashboardScreen extends StatelessWidget {
                 ? 'Sei oltre il budget di oggi'
                 : low
                     ? 'Occhio: oggi sei al limite'
-                    : '$daysLeft giorni rimasti fino a fine mese';
+                    : '$daysLeft giorni rimasti al prossimo stipendio';
 
         final ctaText = (noIncome || isOver) ? 'Aggiungi entrata' : 'Aggiungi spesa';
         final ctaIcon = (noIncome || isOver) ? Icons.south_west : Icons.add;
@@ -321,38 +349,70 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      profileName.isEmpty
-                          ? '${greeting()}! 👋'
-                          : '${greeting()} $profileName! 👋',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+  profileName.isEmpty
+      ? '${greeting()}! 👋'
+      : '${greeting()} $profileName! 👋',
+  style: theme.textTheme.titleMedium?.copyWith(
+    color: Colors.white,
+    fontWeight: FontWeight.w800,
+  ),
+),
+const SizedBox(height: 10),
 
-                    _HeroCard(
-                      heroGradient: heroGradient,
-                      pillGradient: pillGradient,
-                      todayTitle: todayTitle,
-                      todayValue: todayValue,
-                      spentToday: euro.format(spentToday),
-                      progressValue: monthProgress,
-                      progressLabel: variableBudget <= 0
-                          ? 'Budget mensile non disponibile'
-                          : 'Budget mensile: ${euro.format(spentThisMonth)} / ${euro.format(variableBudget)}',
-                      pillText: pillText,
-                      ctaText: ctaText,
-                      ctaIcon: ctaIcon,
-                      onRefresh: () => state.refresh(),
-                      onAdd: () {
-                        if (noIncome || isOver) {
-                          (onQuickAddIncome ?? () => _go(2)).call();
-                        } else {
-                          (onQuickAddExpense ?? () => _go(2)).call();
-                        }
-                      },
-                    ),
+Container(
+  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  decoration: BoxDecoration(
+    color: Colors.white.withValues(alpha: 0.14),
+    borderRadius: BorderRadius.circular(999),
+    border: Border.all(
+      color: Colors.white.withValues(alpha: 0.18),
+    ),
+  ),
+  child: Row(
+    children: [
+      const Icon(
+        Icons.calendar_month_rounded,
+        color: Colors.white,
+        size: 18,
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(
+          'Ciclo stipendio: $cycleLabel',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+
+const SizedBox(height: 12),
+
+_HeroCard(
+  heroGradient: heroGradient,
+  pillGradient: pillGradient,
+  todayTitle: todayTitle,
+  todayValue: todayValue,
+  spentToday: euro.format(spentToday),
+  progressValue: monthProgress,
+  progressLabel: variableBudget <= 0
+      ? 'Budget mensile non disponibile'
+      : 'Budget mensile: ${euro.format(spentThisCycle)} / ${euro.format(variableBudget)}',
+  pillText: pillText,
+  ctaText: ctaText,
+  ctaIcon: ctaIcon,
+  onRefresh: () => state.refresh(),
+  onAdd: () {
+    if (noIncome || isOver) {
+      (onQuickAddIncome ?? () => _go(2)).call();
+    } else {
+      (onQuickAddExpense ?? () => _go(2)).call();
+    }
+  },
+),
 
                     const SizedBox(height: 14),
 
@@ -458,7 +518,7 @@ class DashboardScreen extends StatelessWidget {
                           child: _MiniStatCard(
                             icon: Icons.trending_down,
                             title: 'Speso',
-                            value: euro.format(spentThisMonth),
+                            value: euro.format(spentThisCycle),
                             gradient: const LinearGradient(
                               colors: [Color(0xFFF97316), Color(0xFFEF4444)],
                             ),
@@ -526,7 +586,7 @@ class DashboardScreen extends StatelessWidget {
                             const SizedBox(height: 12),
                             MonthOverviewChart(
                               income: incomeTotal,
-                              spent: spentThisMonth,
+                              spent: spentThisCycle,
                               saving: saving,
                               remaining: snap.monthRemaining,
                             ),
