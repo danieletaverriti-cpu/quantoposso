@@ -8,6 +8,7 @@ import 'package:quantoposso/app/state.dart';
 import 'package:quantoposso/services/budget_math.dart';
 import '../widgets/month_overview_chart.dart';
 import '../../services/salary_cycle.dart';
+import 'package:quantoposso/data/models.dart';
 
 
 
@@ -136,7 +137,7 @@ final cycleEndExclusive = DateTime(
     )
     .fold<double>(0.0, (sum, i) => sum + i.amount);
 
-      final spentThisCycle = state.expenses
+     final spentThisCycle = state.expenses
     .where(
       (e) =>
           !e.date.isBefore(cycleStart) &&
@@ -148,13 +149,25 @@ final cycleEndExclusive = DateTime(
         final tomorrowStart = todayStart.add(const Duration(days: 1));
         final remainingDaysInCycle =
     cycle.end.difference(todayStart).inDays + 1;
-        final spentToday = state.expenses
-            .where(
-              (e) =>
-                  e.date.isAfter(todayStart.subtract(const Duration(seconds: 1))) &&
-                  e.date.isBefore(tomorrowStart),
-            )
-            .fold<double>(0.0, (sum, e) => sum + e.amount);
+        final cycleRemainingDaysRaw = cycle.end.difference(todayStart).inDays + 1;
+final cycleRemainingDays = cycleRemainingDaysRaw <= 0 ? 1 : cycleRemainingDaysRaw;
+
+final spentToday = state.expenses
+    .where(
+      (e) =>
+          e.date.isAfter(todayStart.subtract(const Duration(seconds: 1))) &&
+          e.date.isBefore(tomorrowStart),
+    )
+    .fold<double>(0.0, (sum, e) {
+      switch (e.impact) {
+        case ExpenseImpact.daily:
+          return sum + e.amount;
+        case ExpenseImpact.weekly:
+          return sum + (e.amount / 7.0);
+        case ExpenseImpact.cycle:
+          return sum + (e.amount / cycleRemainingDays);
+      }
+    });
 
         final fixedTotal =
             state.fixed.fold<double>(0.0, (sum, f) => sum + f.amount);
@@ -162,7 +175,7 @@ final cycleEndExclusive = DateTime(
         final saving = state.settings.monthlySaving.toDouble();
 
         final cycleTotalDays = cycle.end.difference(cycle.start).inDays + 1;
-        final cycleRemainingDays = cycle.end.difference(todayStart).inDays + 1;
+        
 
        final snap = BudgetMath.compute(
   today: now,

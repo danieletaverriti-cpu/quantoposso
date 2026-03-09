@@ -1,12 +1,20 @@
 import 'package:flutter/foundation.dart';
 
 @immutable
+
+enum ExpenseImpact {
+  daily,
+  weekly,
+  cycle,
+}
+
 class Expense {
   final String id;
   final double amount;
   final String category;
   final DateTime date;
   final String note;
+  final ExpenseImpact impact;
 
   const Expense({
     required this.id,
@@ -14,6 +22,7 @@ class Expense {
     required this.category,
     required this.date,
     required this.note,
+    this.impact = ExpenseImpact.daily,
   });
 
   Map<String, dynamic> toMap() => {
@@ -22,6 +31,7 @@ class Expense {
         'category': category,
         'date': date.toIso8601String(),
         'note': note,
+        'impact' : impact.name,
       };
 
   factory Expense.fromMap(Map<dynamic, dynamic> m) => Expense(
@@ -30,7 +40,20 @@ class Expense {
         category: (m['category'] as String?) ?? '',
         date: DateTime.tryParse((m['date'] as String?) ?? '') ?? DateTime.now(),
         note: (m['note'] as String?) ?? '',
+        impact: _expenseImpactFromString((m['impact'] as String?) ?? 'daily'),
       );
+}
+
+ExpenseImpact _expenseImpactFromString(String value) {
+  switch (value) {
+    case 'weekly':
+      return ExpenseImpact.weekly;
+    case 'mensile':
+      return ExpenseImpact.cycle;
+    case 'daily':
+    default:
+      return ExpenseImpact.daily;
+  }
 }
 
 @immutable
@@ -142,6 +165,9 @@ class SettingsModel {
   final int dailyReminderHour;
   final int dailyReminderMinute;
   final int paydayDay;
+  final String? lastSalaryDateIso;
+  final bool useRealSalaryCycle;
+
   /// Risparmio mensile
   final double monthlySaving;
 
@@ -179,6 +205,8 @@ class SettingsModel {
 
    //stpendio
    this.paydayDay = 28,
+   this.lastSalaryDateIso,
+   this.useRealSalaryCycle = false,
     // app
     this.monthlySaving = 300,
 
@@ -216,6 +244,8 @@ class SettingsModel {
         // app
         'monthlySaving': monthlySaving,
         'paydayDay' : paydayDay,
+        'lastSalaryDateIso' : lastSalaryDateIso,
+        'UseRealSalaryCycle' : useRealSalaryCycle,
 
         // notifiche
         'morningBudgetEnabled': morningBudgetEnabled,
@@ -254,6 +284,8 @@ class SettingsModel {
         // app
         monthlySaving: ((m['monthlySaving'] as num?) ?? 300).toDouble(),
         paydayDay: (m['paydayDay'] as int?) ?? 10,
+        lastSalaryDateIso: m['lastSalaryDateIso'] as String?,
+        useRealSalaryCycle: (m['useRealSalaryCycle'] as bool?) ?? false,
 
         // notifiche
         morningBudgetEnabled: (m['morningBudgetEnabled'] as bool?) ?? true,
@@ -290,6 +322,9 @@ class SettingsModel {
     // app
     double? monthlySaving,
     int? paydayDay,
+    String? lastSalaryDateIso,
+    bool? useRealSalaryCycle,
+    bool clearLastSalaryDateIso = false,
 
     // notifiche
     bool? morningBudgetEnabled,

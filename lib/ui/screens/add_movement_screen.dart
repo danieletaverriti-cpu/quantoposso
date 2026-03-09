@@ -60,6 +60,7 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
 
   String _expenseCategory = 'Varie';
   String _incomeCategory = 'Stipendio';
+  ExpenseImpact _expenseImpact = ExpenseImpact.daily;
 
   int? get _forcedMode => widget.forceMode?.clamp(0, 1);
 
@@ -197,13 +198,24 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
       await widget.state.addExpense(e);
     } else {
       final i = Income(
-        id: id,
-        amount: amount,
-        category: _incomeCategory,
-        date: _date,
-        note: _noteCtrl.text.trim(),
-      );
-      await widget.state.addIncome(i);
+  id: id,
+  amount: amount,
+  category: _incomeCategory,
+  date: _date,
+  note: _noteCtrl.text.trim(),
+);
+await widget.state.addIncome(i);
+
+// Se è uno stipendio, aggiorna il ciclo reale
+if (_incomeCategory == 'Stipendio') {
+  final currentSettings = widget.state.settings;
+  await widget.state.saveSettings(
+    currentSettings.copyWith(
+      lastSalaryDateIso: _date.toIso8601String(),
+      useRealSalaryCycle: true,
+    ),
+  );
+}
     }
 
     if (!mounted) return;
@@ -234,22 +246,22 @@ final isExpense = selectedMode == 0;
 
 final Color activeColor = isExpense ? const Color(0xFFEF4444) : const Color(0xFF16A34A); // rosso / verde
     final expenseCategories = <String>[
-      'Spesa alimentare',
-      'Casa',
-      'Bollette',
-      'Auto',
-      'Trasporti',
-      'Bar',
-      'Ristorante',
-      'Salute',
-      'Svago',
-      'Viaggi',
-      'Abbigliamento',
-      'Sport',
-      'Tasse',
-      'Regali',
-      'Varie',
-    ];
+  'Abbigliamento',
+  'Auto',
+  'Bar',
+  'Bollette',
+  'Casa',
+  'Regali',
+  'Ristorante',
+  'Salute',
+  'Spesa alimentare',
+  'Sport',
+  'Svago',
+  'Tasse',
+  'Trasporti',
+  'Varie',
+  'Viaggi',
+];
 
     final incomeCategories = <String>[
       'Stipendio',
@@ -408,7 +420,33 @@ SegmentedButton<int>(
                   },
                   decoration: const InputDecoration(labelText: 'Categoria'),
                 ),
-
+if (isExpense) ...[
+  const SizedBox(height: 12),
+  DropdownButtonFormField<ExpenseImpact>(
+    initialValue: _expenseImpact,
+    items: const [
+      DropdownMenuItem(
+        value: ExpenseImpact.daily,
+        child: Text('Giornaliera'),
+      ),
+      DropdownMenuItem(
+        value: ExpenseImpact.weekly,
+        child: Text('Settimanale'),
+      ),
+      DropdownMenuItem(
+        value: ExpenseImpact.cycle,
+        child: Text('Straordinaria (tutto il ciclo)'),
+      ),
+    ],
+    onChanged: (v) {
+      if (v == null) return;
+      setState(() => _expenseImpact = v);
+    },
+    decoration: const InputDecoration(
+      labelText: 'Come deve pesare sul budget?',
+    ),
+  ),
+],
                 const SizedBox(height: 12),
 
                 ListTile(

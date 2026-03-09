@@ -9,6 +9,7 @@ import 'package:quantoposso/app/state.dart';
 import 'package:quantoposso/data/models.dart';
 import 'package:quantoposso/services/budget_math.dart';
 import 'package:quantoposso/services/notifications.dart';
+import 'package:quantoposso/services/salary_cycle.dart';
 
 class SettingsScreen extends StatefulWidget {
   final AppState state;
@@ -21,6 +22,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _savingCtrl;
   Timer? _debounce;
+  double? _paydayDayDraft;
+
 
   @override
   void initState() {
@@ -28,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _savingCtrl =
         TextEditingController(text: _fmt(widget.state.settings.monthlySaving));
     widget.state.addListener(_syncSavingController);
+    _paydayDayDraft = widget.state.settings.paydayDay.toDouble();
   }
 Future<void> _pickAvatar() async {
   final picker = ImagePicker();
@@ -58,6 +62,7 @@ Future<void> _clearAvatar() async {
 
   void _syncSavingController() {
     final focus = FocusManager.instance.primaryFocus;
+    _paydayDayDraft = widget.state.settings.paydayDay.toDouble();
     if (focus != null && focus.hasFocus) return;
 
     final wanted = _fmt(widget.state.settings.monthlySaving);
@@ -85,27 +90,53 @@ Future<void> _clearAvatar() async {
   }
 
   BudgetSnapshot _computeBudget() {
-    final now = DateTime.now();
+  final now = DateTime.now();
 
-    final income = widget.state.incomes
-        .where((i) => i.date.year == now.year && i.date.month == now.month)
-        .fold<double>(0, (s, i) => s + i.amount);
+  final cycle = SalaryCycleService.estimateCycle(
+    today: now,
+    paydayDay: widget.state.settings.paydayDay,
+    lastSalaryDateIso: widget.state.settings.lastSalaryDateIso,
+    useRealSalaryCycle: widget.state.settings.useRealSalaryCycle,
+  );
 
-    final spentMonth = widget.state.expenses
-        .where((e) => e.date.year == now.year && e.date.month == now.month)
-        .fold<double>(0, (s, e) => s + e.amount);
+  final cycleStart = DateTime(
+    cycle.start.year,
+    cycle.start.month,
+    cycle.start.day,
+  );
 
-    final fixed = widget.state.fixed.fold<double>(0, (s, f) => s + f.amount);
+  final cycleEndExclusive = DateTime(
+    cycle.end.year,
+    cycle.end.month,
+    cycle.end.day,
+  ).add(const Duration(days: 1));
 
-    return BudgetMath.compute(
-      today: now,
-      monthlyIncome: income,
-      fixedExpensesTotal: fixed,
-      goalMonthlySaving: widget.state.settings.monthlySaving,
-      variableSpentThisMonth: spentMonth,
-      variableSpentToday: _spentToday(),
-    );
-  }
+  final income = widget.state.incomes
+      .where((i) => !i.date.isBefore(cycleStart) && i.date.isBefore(cycleEndExclusive))
+      .fold<double>(0, (s, i) => s + i.amount);
+
+  final spentCycle = widget.state.expenses
+      .where((e) => !e.date.isBefore(cycleStart) && e.date.isBefore(cycleEndExclusive))
+      .fold<double>(0, (s, e) => s + e.amount);
+
+  final fixed = widget.state.fixed.fold<double>(0, (s, f) => s + f.amount);
+
+  final todayStart = DateTime(now.year, now.month, now.day);
+  final cycleTotalDays = cycle.end.difference(cycle.start).inDays + 1;
+  final cycleRemainingDaysRaw = cycle.end.difference(todayStart).inDays + 1;
+  final cycleRemainingDays = cycleRemainingDaysRaw <= 0 ? 1 : cycleRemainingDaysRaw;
+
+  return BudgetMath.compute(
+    today: now,
+    monthlyIncome: income,
+    fixedExpensesTotal: fixed,
+    goalMonthlySaving: widget.state.settings.monthlySaving,
+    variableSpentThisMonth: spentCycle,
+    cycleTotalDays: cycleTotalDays,
+    cycleRemainingDays: cycleRemainingDays,
+    variableSpentToday: _spentToday(),
+  );
+}
 
   Future<void> _applyAllSchedules(SettingsModel s) async {
     final snap = _computeBudget();
@@ -283,6 +314,98 @@ _GlassCard(
                               border: const OutlineInputBorder(),
                             ),
                           ),
+
+const SizedBox(height: 18),
+
+Text(
+  'Ciclo stipendio',
+  style: theme.textTheme.titleSmall?.copyWith(
+    fontWeight: FontWeight.w900,
+  ),
+),
+const SizedBox(height: 6),
+Text(
+  'Usato per stimare il ciclo del budget. Puoi cambiarlo se cambia lavoro o data accredito.',
+  style: theme.textTheme.bodySmall?.copyWith(
+    color: theme.colorScheme.onSurfaceVariant,
+    height: 1.3,
+  ),
+),
+const SizedBox(height: 12),
+
+Row(
+  children: [
+    Text(
+      'Giorno ${s.paydayDay}',
+      style: theme.textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.w900,
+      ),
+    ),
+    const Spacer(),
+    IconButton(
+      onPressed: () async {
+        final newDay = (s.paydayDay - 1).clamp(1, 31);
+        final updated = s.copyWith(paydayDay: newDay);
+        await widget.state.saveSettings(updated);
+      },
+      icon: const Icon(Icons.remove_circle_outline),
+    ),
+    IconButton(
+      onPressed: () async {
+        final newDay = (s.paydayDay + 1).clamp(1, 31);
+        final updated = s.copyWith(paydayDay: newDay);
+        await widget.state.saveSettings(updated);
+      },
+      icon: const Icon(Icons.add_circle_outline),
+    ),
+  ],
+),
+
+SliderTheme(
+  data: SliderTheme.of(context).copyWith(
+    trackHeight: 6,
+    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+    overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+  ),
+  child: Slider(
+    min: 1,
+    max: 31,
+    divisions: 30,
+    value: (_paydayDayDraft ?? s.paydayDay.toDouble()).clamp(1, 31),
+    label: (_paydayDayDraft ?? s.paydayDay.toDouble()).round().toString(),
+
+    onChanged: (v) {
+      setState(() => _paydayDayDraft = v);
+    },
+
+    onChangeEnd: (v) async {
+      final updated = s.copyWith(paydayDay: v.round());
+      await widget.state.saveSettings(updated);
+
+      if (mounted) {
+        setState(() => _paydayDayDraft = updated.paydayDay.toDouble());
+      }
+    },
+  ),
+),
+Row(
+  children: [
+    Text(
+      '1',
+      style: theme.textTheme.labelMedium?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    ),
+    const Spacer(),
+    Text(
+      '31',
+      style: theme.textTheme.labelMedium?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    ),
+  ],
+),
+
                         ],
                       ),
                     ),
