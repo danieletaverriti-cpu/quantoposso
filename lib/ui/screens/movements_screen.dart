@@ -50,6 +50,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
             category: e.category,
             date: e.date,
             note: e.note,
+            impact: e.impact,
           ));
         }
         for (final i in widget.state.incomes) {
@@ -166,6 +167,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                   category: m.category,
                   date: m.date,
                   note: m.note,
+                  impact: m.impact,
                 ),
               ),
             ),
@@ -220,6 +222,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                         category: m.category,
                         date: m.date,
                         note: m.note,
+
                       ),
                     );
                   } else {
@@ -230,6 +233,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                         category: m.category,
                         date: m.date,
                         note: m.note,
+                        impact: m.impact,
                       ),
                     );
                   }
@@ -669,6 +673,7 @@ class _MoveItem {
   final String category;
   final DateTime date;
   final String note;
+  final ExpenseImpact impact;
 
   const _MoveItem._({
     required this.isIncome,
@@ -677,24 +682,27 @@ class _MoveItem {
     required this.category,
     required this.date,
     required this.note,
+    this.impact = ExpenseImpact.daily,
   });
 
-  factory _MoveItem.expense({
-    required String id,
-    required double amount,
-    required String category,
-    required DateTime date,
-    required String note,
-  }) {
-    return _MoveItem._(
-      isIncome: false,
-      id: id,
-      amount: amount,
-      category: category,
-      date: date,
-      note: note,
-    );
-  }
+ factory _MoveItem.expense({
+  required String id,
+  required double amount,
+  required String category,
+  required DateTime date,
+  required String note,
+  ExpenseImpact impact = ExpenseImpact.daily,
+}) {
+  return _MoveItem._(
+    isIncome: false,
+    id: id,
+    amount: amount,
+    category: category,
+    date: date,
+    note: note,
+    impact: impact,
+  );
+}
 
   factory _MoveItem.income({
     required String id,

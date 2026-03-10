@@ -49,7 +49,7 @@ ExpenseImpact _expenseImpactFromString(String value) {
   switch (value) {
     case 'weekly':
       return ExpenseImpact.weekly;
-    case 'mensile':
+    case 'cycle':
       return ExpenseImpact.cycle;
     case 'daily':
     default:
@@ -246,7 +246,7 @@ class SettingsModel {
         'monthlySaving': monthlySaving,
         'paydayDay' : paydayDay,
         'lastSalaryDateIso' : lastSalaryDateIso,
-        'UseRealSalaryCycle' : useRealSalaryCycle,
+        'useRealSalaryCycle': useRealSalaryCycle,
 
         // notifiche
         'morningBudgetEnabled': morningBudgetEnabled,

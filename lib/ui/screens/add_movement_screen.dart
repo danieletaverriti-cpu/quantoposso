@@ -13,6 +13,7 @@ class EditingMovement {
   final String category;
   final DateTime date;
   final String note;
+  final ExpenseImpact impact;
 
   const EditingMovement({
     required this.isIncome,
@@ -21,6 +22,7 @@ class EditingMovement {
     required this.category,
     required this.date,
     required this.note,
+    this.impact = ExpenseImpact.daily,
   });
 }
 
@@ -104,10 +106,11 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
       _date = ed.date;
 
       if (ed.isIncome) {
-        _incomeCategory = ed.category;
-      } else {
-        _expenseCategory = ed.category;
-      }
+  _incomeCategory = ed.category;
+} else {
+  _expenseCategory = ed.category;
+  _expenseImpact = ed.impact;
+}
     }
   }
 
@@ -153,11 +156,12 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
   }
 
   void _resetForm() {
-    _amountCtrl.clear();
-    _noteCtrl.clear();
-    _date = DateTime.now();
-    setState(() {});
-  }
+  _amountCtrl.clear();
+  _noteCtrl.clear();
+  _date = DateTime.now();
+  _expenseImpact = ExpenseImpact.daily;
+  setState(() {});
+}
 
   Future<void> _save() async {
     final amount = _parseAmount(_amountCtrl.text);
@@ -194,6 +198,7 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
         category: _expenseCategory,
         date: _date,
         note: _noteCtrl.text.trim(),
+        impact: _expenseImpact,
       );
       await widget.state.addExpense(e);
     } else {

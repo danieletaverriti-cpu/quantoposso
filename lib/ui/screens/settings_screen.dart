@@ -211,31 +211,42 @@ Future<void> _clearAvatar() async {
         final euro = NumberFormat.currency(locale: 'it_IT', symbol: '€');
 
         return Scaffold(
+          appBar: AppBar(
+  backgroundColor: Colors.transparent,
+  elevation: 0,
+  scrolledUnderElevation: 0,
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+    onPressed: () => Navigator.of(context).maybePop(),
+  ),
+  title: Text(
+    'Impostazioni',
+    style: theme.textTheme.titleLarge?.copyWith(
+      color: Colors.white,
+      fontWeight: FontWeight.w900,
+    ),
+  ),
+  actions: const [
+    Padding(
+      padding: EdgeInsets.only(right: 12),
+      child: CircleAvatar(
+        radius: 18,
+        backgroundColor: Colors.white,
+        child: Icon(Icons.tune, color: Color(0xFF1E40AF)),
+      ),
+    ),
+  ],
+),
+extendBodyBehindAppBar: true,
+
           backgroundColor: Colors.transparent,
           body: Stack(
             children: [
               const _BlueHeaderBackground(),
               ListView(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+                padding: const EdgeInsets.fromLTRB(16, 110, 16, 24),
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Impostazioni',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const Spacer(),
-                      const CircleAvatar(
-                        radius: 18,
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.tune, color: Color(0xFF1E40AF)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
+                 
 
 _GlassCard(
   child: Padding(
