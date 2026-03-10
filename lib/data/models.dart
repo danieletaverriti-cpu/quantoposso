@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 
-@immutable
-
 enum ExpenseImpact {
   daily,
   weekly,
   cycle,
 }
+
+
+@immutable
 
 class Expense {
   final String id;
@@ -367,6 +368,10 @@ class SettingsModel {
       // app
       monthlySaving: monthlySaving ?? this.monthlySaving,
       paydayDay: paydayDay ?? this.paydayDay,
+      lastSalaryDateIso: clearLastSalaryDateIso
+    ? null
+    : (lastSalaryDateIso ?? this.lastSalaryDateIso),
+useRealSalaryCycle: useRealSalaryCycle ?? this.useRealSalaryCycle,
 
       // notifiche
       morningBudgetEnabled: morningBudgetEnabled ?? this.morningBudgetEnabled,
