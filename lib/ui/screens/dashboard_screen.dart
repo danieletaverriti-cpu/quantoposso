@@ -9,6 +9,7 @@ import 'package:quantoposso/services/budget_math.dart';
 import '../widgets/month_overview_chart.dart';
 import '../../services/salary_cycle.dart';
 import 'package:quantoposso/data/models.dart';
+import 'package:path_provider/path_provider.dart';
 
 
 
@@ -35,23 +36,37 @@ class DashboardScreen extends StatelessWidget {
 
   void _go(int idx) => onNavigate?.call(idx);
 
-  Future<void> _pickAvatar(BuildContext context) async {
-    final picker = ImagePicker();
-    final xfile = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 512,
-    );
-    if (xfile == null) return;
+Future<void> _pickAvatar() async {
+  final picker = ImagePicker();
 
-    final s = state.settings;
-    await state.saveSettings(s.copyWith(profileAvatarPath: xfile.path));
+  final xfile = await picker.pickImage(
+    source: ImageSource.gallery,
+    imageQuality: 85,
+    maxWidth: 512,
+  );
 
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Foto profilo aggiornata ✅')),
-    );
+  if (xfile == null) return;
+
+  final dir = await getApplicationDocumentsDirectory();
+  final avatarDir = Directory('${dir.path}/profile');
+
+  if (!await avatarDir.exists()) {
+    await avatarDir.create(recursive: true);
   }
+
+  final savedFile = File('${avatarDir.path}/avatar.jpg');
+
+  if (await savedFile.exists()) {
+    await savedFile.delete();
+  }
+
+  await File(xfile.path).copy(savedFile.path);
+
+  final s = state.settings;
+  final updated = s.copyWith(profileAvatarPath: savedFile.path);
+
+  await state.saveSettings(updated);
+}
 
 
   
@@ -373,7 +388,7 @@ final currentWeek = _currentWeekIndexFromCycle(now, ranges);
                         Builder(
                           builder: (ctx) => IconButton(
                             tooltip: 'Profilo',
-                            onPressed: () => _pickAvatar(ctx),
+                            onPressed: _pickAvatar,
                             icon: CircleAvatar(
                               radius: 18,
                               backgroundColor: Colors.white,
