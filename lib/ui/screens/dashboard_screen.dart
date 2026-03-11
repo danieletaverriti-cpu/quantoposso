@@ -104,27 +104,28 @@ String _rangeLabel(DateTime start, DateTime end) {
 }
 
   
-  double _spentInRange({
+double _spentForWeekBox({
   required DateTime startInclusive,
   required DateTime endExclusive,
-  required int cycleRemainingDays,
+  required int totalWeekBoxes,
 }) {
-  return state.expenses
-      .where(
-        (e) => !e.date.isBefore(startInclusive) && e.date.isBefore(endExclusive),
-      )
-      .fold<double>(0.0, (s, e) {
-        switch (e.impact) {
-          case ExpenseImpact.daily:
-            return s + e.amount;
-          case ExpenseImpact.weekly:
-            return s + (e.amount / 7.0);
-          case ExpenseImpact.cycle:
-            return s + (e.amount / cycleRemainingDays);
-        }
-      });
-}
+  return state.expenses.fold<double>(0.0, (sum, e) {
+    switch (e.impact) {
+      case ExpenseImpact.daily:
+        final isInside =
+            !e.date.isBefore(startInclusive) && e.date.isBefore(endExclusive);
+        return isInside ? sum + e.amount : sum;
 
+      case ExpenseImpact.weekly:
+        final isInside =
+            !e.date.isBefore(startInclusive) && e.date.isBefore(endExclusive);
+        return isInside ? sum + (e.amount / 7.0) : sum;
+
+      case ExpenseImpact.cycle:
+        return sum + (e.amount / totalWeekBoxes);
+    }
+  });
+}
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -299,11 +300,11 @@ final currentWeek = _currentWeekIndexFromCycle(now, ranges);
   final endExclusive =
       DateTime(r.end.year, r.end.month, r.end.day).add(const Duration(days: 1));
 
-  final spentWeek = _spentInRange(
-    startInclusive: start,
-    endExclusive: endExclusive,
-    cycleRemainingDays: cycleRemainingDays,
-  );
+ final spentWeek = _spentForWeekBox(
+  startInclusive: start,
+  endExclusive: endExclusive,
+  totalWeekBoxes: ranges.length,
+);
 
   final remainingWeek = weekBudget - spentWeek;
 
