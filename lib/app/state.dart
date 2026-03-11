@@ -4,6 +4,7 @@ import '../data/models.dart';
 import '../data/repository.dart';
 import '../services/budget_math.dart';
 import '../services/notifications.dart';
+import '../services/salary_cycle.dart';
 
 class AppState extends ChangeNotifier {
   final repo = Repository.instance;
@@ -112,19 +113,23 @@ class AppState extends ChangeNotifier {
 
   // Settings
   Future<void> saveSettings(SettingsModel s) async {
-    await repo.saveSettings(s);
-    settings = repo.settings;
-    // ✅ Popup permessi notifiche al primo avvio (solo una volta)
-if (!settings.notificationsPermissionRequested) {
-  await NotificationsService.instance.requestPermissionsIfNeeded();
-  await saveSettings(
-    settings.copyWith(notificationsPermissionRequested: true),
-  );
-}
-    notifyListeners();
-  }
-  
+  await repo.saveSettings(s);
+  settings = repo.settings;
 
+  if (!settings.notificationsPermissionRequested) {
+    await NotificationsService.instance.requestPermissionsIfNeeded();
+
+    final updated = settings.copyWith(
+      notificationsPermissionRequested: true,
+    );
+
+    await repo.saveSettings(updated);
+    settings = updated;
+  }
+
+  await _rescheduleNotificationsSafe();
+  notifyListeners();
+}
   // Alias per compatibilità con SettingsScreen
   Future<void> updateSettings(SettingsModel s) => saveSettings(s);
 
@@ -144,100 +149,186 @@ if (!settings.notificationsPermissionRequested) {
     profile = null;
     notifyListeners();
   }
-  double _spentToday() {
-    final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day);
-    final end = start.add(const Duration(days: 1));
-    return expenses
-        .where((e) =>
-            e.date.isAfter(start.subtract(const Duration(seconds: 1))) &&
-            e.date.isBefore(end))
-        .fold<double>(0.0, (s, e) => s + e.amount);
-  }
+  double _spentToday({
+  required int cycleRemainingDays,
+}) {
+  final now = DateTime.now();
+  final start = DateTime(now.year, now.month, now.day);
+  final end = start.add(const Duration(days: 1));
+
+  return expenses
+      .where((e) =>
+          e.date.isAfter(start.subtract(const Duration(seconds: 1))) &&
+          e.date.isBefore(end))
+      .fold<double>(0.0, (sum, e) {
+        switch (e.impact) {
+          case ExpenseImpact.daily:
+            return sum + e.amount;
+          case ExpenseImpact.weekly:
+            return sum + (e.amount / 7.0);
+          case ExpenseImpact.cycle:
+            return sum + (e.amount / cycleRemainingDays);
+        }
+      });
+}
 
   Future<void> _rescheduleNotificationsSafe() async {
-    try {
-      final snap = budget;
-      final dayAllowance = snap.dayAllowance;
-      final spentToday = _spentToday();
-
-      // ✅ Mattina
-      if (settings.morningBudgetEnabled) {
-        await NotificationsService.instance.scheduleMorningBudget(
-          hour: settings.morningBudgetHour,
-          minute: settings.morningBudgetMinute,
-          dayAllowance: dayAllowance,
-        );
-      } else {
-        await NotificationsService.instance.cancelMorningBudget();
-      }
-
-      // ✅ Sera (esito giornata)
-      if (settings.eveningStatusEnabled) {
-        await NotificationsService.instance.scheduleEveningStatus(
-          hour: settings.eveningStatusHour,
-          minute: settings.eveningStatusMinute,
-          dayAllowance: dayAllowance,
-          spentToday: spentToday,
-        );
-      } else {
-        await NotificationsService.instance.cancelEveningStatus();
-      }
-
-      // ✅ LEGACY (se lo tieni ancora attivo nei settings)
-      if (settings.dailyReminderEnabled) {
-        await NotificationsService.instance.scheduleDailyBudgetReminder(
-          hour: settings.dailyReminderHour,
-          minute: settings.dailyReminderMinute,
-          dayAllowance: dayAllowance,
-          todayRemaining: snap.todayRemaining,
-        );
-      } else {
-        await NotificationsService.instance.cancelDailyReminder();
-      }
-
-      // ⚠️ PROMEMORIA SPESE:
-      // Se nel tuo SettingsModel esistono i campi expenseReminderEnabled/hour/minute
-      // allora sblocca questo pezzo (altrimenti lascialo commentato).
-      
-      if (settings.expenseReminderEnabled) {
-        await NotificationsService.instance.scheduleExpenseReminder(
-          hour: settings.expenseReminderHour,
-          minute: settings.expenseReminderMinute,
-        );
-      } else {
-        await NotificationsService.instance.cancelExpenseReminder();
-      }
-      
-    } catch (e) {
-      if (kDebugMode) {
-        // ignore: avoid_print
-        print('reschedule notifications failed: $e');
-      }
-    }
-  }
-  BudgetSnapshot get budget {
+  try {
     final now = DateTime.now();
 
-    // Entrate del mese
+    final cycle = SalaryCycleService.estimateCycle(
+      today: now,
+      paydayDay: settings.paydayDay,
+      lastSalaryDateIso: settings.lastSalaryDateIso,
+      useRealSalaryCycle: settings.useRealSalaryCycle,
+    );
+
+    final cycleStart = DateTime(
+      cycle.start.year,
+      cycle.start.month,
+      cycle.start.day,
+    );
+
+    final cycleEndExclusive = DateTime(
+      cycle.end.year,
+      cycle.end.month,
+      cycle.end.day,
+    ).add(const Duration(days: 1));
+
     final monthlyIncome = incomes
-        .where((i) => i.date.year == now.year && i.date.month == now.month)
+        .where((i) =>
+            !i.date.isBefore(cycleStart) && i.date.isBefore(cycleEndExclusive))
         .fold<double>(0.0, (sum, i) => sum + i.amount);
 
-    // Spese variabili del mese
     final variableSpent = expenses
-        .where((e) => e.date.year == now.year && e.date.month == now.month)
+        .where((e) =>
+            !e.date.isBefore(cycleStart) && e.date.isBefore(cycleEndExclusive))
         .fold<double>(0.0, (sum, e) => sum + e.amount);
 
-    // Spese fisse
     final fixedTotal = fixed.fold<double>(0.0, (sum, f) => sum + f.amount);
 
-    return BudgetMath.compute(
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final cycleTotalDays = cycle.end.difference(cycle.start).inDays + 1;
+    final cycleRemainingDaysRaw = cycle.end.difference(todayStart).inDays + 1;
+    final cycleRemainingDays =
+        cycleRemainingDaysRaw <= 0 ? 1 : cycleRemainingDaysRaw;
+
+    final spentToday = _spentToday(
+      cycleRemainingDays: cycleRemainingDays,
+    );
+
+    final snap = BudgetMath.compute(
       today: now,
       monthlyIncome: monthlyIncome,
       fixedExpensesTotal: fixedTotal,
       goalMonthlySaving: settings.monthlySaving,
       variableSpentThisMonth: variableSpent,
+      cycleTotalDays: cycleTotalDays,
+      cycleRemainingDays: cycleRemainingDays,
+      variableSpentToday: spentToday,
     );
+
+    final dayAllowance = snap.dayAllowance;
+
+    if (settings.morningBudgetEnabled) {
+      await NotificationsService.instance.scheduleMorningBudget(
+        hour: settings.morningBudgetHour,
+        minute: settings.morningBudgetMinute,
+        dayAllowance: dayAllowance,
+      );
+    } else {
+      await NotificationsService.instance.cancelMorningBudget();
+    }
+
+    if (settings.eveningStatusEnabled) {
+      await NotificationsService.instance.scheduleEveningStatus(
+        hour: settings.eveningStatusHour,
+        minute: settings.eveningStatusMinute,
+        dayAllowance: dayAllowance,
+        spentToday: spentToday,
+      );
+    } else {
+      await NotificationsService.instance.cancelEveningStatus();
+    }
+
+    if (settings.dailyReminderEnabled) {
+      await NotificationsService.instance.scheduleDailyBudgetReminder(
+        hour: settings.dailyReminderHour,
+        minute: settings.dailyReminderMinute,
+        dayAllowance: dayAllowance,
+        todayRemaining: snap.todayRemaining,
+      );
+    } else {
+      await NotificationsService.instance.cancelDailyReminder();
+    }
+
+    if (settings.expenseReminderEnabled) {
+      await NotificationsService.instance.scheduleExpenseReminder(
+        hour: settings.expenseReminderHour,
+        minute: settings.expenseReminderMinute,
+      );
+    } else {
+      await NotificationsService.instance.cancelExpenseReminder();
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('reschedule notifications failed: $e');
+    }
   }
+}
+  BudgetSnapshot get budget {
+  final now = DateTime.now();
+
+  final cycle = SalaryCycleService.estimateCycle(
+    today: now,
+    paydayDay: settings.paydayDay,
+    lastSalaryDateIso: settings.lastSalaryDateIso,
+    useRealSalaryCycle: settings.useRealSalaryCycle,
+  );
+
+  final cycleStart = DateTime(
+    cycle.start.year,
+    cycle.start.month,
+    cycle.start.day,
+  );
+
+  final cycleEndExclusive = DateTime(
+    cycle.end.year,
+    cycle.end.month,
+    cycle.end.day,
+  ).add(const Duration(days: 1));
+
+  final monthlyIncome = incomes
+      .where((i) =>
+          !i.date.isBefore(cycleStart) && i.date.isBefore(cycleEndExclusive))
+      .fold<double>(0.0, (sum, i) => sum + i.amount);
+
+  final variableSpent = expenses
+      .where((e) =>
+          !e.date.isBefore(cycleStart) && e.date.isBefore(cycleEndExclusive))
+      .fold<double>(0.0, (sum, e) => sum + e.amount);
+
+  final fixedTotal = fixed.fold<double>(0.0, (sum, f) => sum + f.amount);
+
+  final todayStart = DateTime(now.year, now.month, now.day);
+  final cycleTotalDays = cycle.end.difference(cycle.start).inDays + 1;
+  final cycleRemainingDaysRaw = cycle.end.difference(todayStart).inDays + 1;
+  final cycleRemainingDays =
+      cycleRemainingDaysRaw <= 0 ? 1 : cycleRemainingDaysRaw;
+
+  final spentToday = _spentToday(
+    cycleRemainingDays: cycleRemainingDays,
+  );
+
+  return BudgetMath.compute(
+    today: now,
+    monthlyIncome: monthlyIncome,
+    fixedExpensesTotal: fixedTotal,
+    goalMonthlySaving: settings.monthlySaving,
+    variableSpentThisMonth: variableSpent,
+    cycleTotalDays: cycleTotalDays,
+    cycleRemainingDays: cycleRemainingDays,
+    variableSpentToday: spentToday,
+  );
+}
 }
