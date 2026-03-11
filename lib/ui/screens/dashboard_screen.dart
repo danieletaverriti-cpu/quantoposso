@@ -53,49 +53,77 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  int _daysInMonth(DateTime d) {
-    final firstNext = (d.month == 12)
-        ? DateTime(d.year + 1, 1, 1)
-        : DateTime(d.year, d.month + 1, 1);
-    return firstNext.subtract(const Duration(days: 1)).day;
+
+  
+
+    List<_WeekRange> _fourWeekRangesFromCycle({
+  required DateTime cycleStart,
+  required DateTime cycleEnd,
+}) {
+  final totalDays = cycleEnd.difference(cycleStart).inDays + 1;
+  final base = totalDays ~/ 4;
+  final rem = totalDays % 4;
+
+  final sizes = List<int>.generate(4, (i) => base + (i < rem ? 1 : 0));
+
+  var cursor = DateTime(cycleStart.year, cycleStart.month, cycleStart.day);
+  final out = <_WeekRange>[];
+
+  for (int i = 0; i < 4; i++) {
+    final start = cursor;
+    final end = cursor.add(Duration(days: sizes[i] - 1));
+
+    out.add(
+      _WeekRange(
+        weekIndex: i,
+        start: start,
+        end: end,
+      ),
+    );
+
+    cursor = end.add(const Duration(days: 1));
   }
 
-  List<_WeekRange> _fourWeekRanges(DateTime now) {
-    final totalDays = _daysInMonth(now);
-    final base = totalDays ~/ 4;
-    final rem = totalDays % 4;
+  return out;
+}
 
-    final sizes = List<int>.generate(4, (i) => base + (i < rem ? 1 : 0));
+int _currentWeekIndexFromCycle(DateTime now, List<_WeekRange> ranges) {
+  final day = DateTime(now.year, now.month, now.day);
 
-    int startDay = 1;
-    final out = <_WeekRange>[];
-    for (int i = 0; i < 4; i++) {
-      final size = sizes[i];
-      final endDay = startDay + size - 1;
-      out.add(_WeekRange(weekIndex: i, startDay: startDay, endDay: endDay));
-      startDay = endDay + 1;
+  for (final r in ranges) {
+    if (!day.isBefore(r.start) && !day.isAfter(r.end)) {
+      return r.weekIndex;
     }
-    return out;
   }
+  return 3;
+}
 
-  int _currentWeekIndex(DateTime now, List<_WeekRange> ranges) {
-    final day = now.day;
-    for (final r in ranges) {
-      if (day >= r.startDay && day <= r.endDay) return r.weekIndex;
-    }
-    return 3;
-  }
+String _rangeLabel(DateTime start, DateTime end) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(start.day)}/${two(start.month)}-${two(end.day)}/${two(end.month)}';
+}
 
+  
   double _spentInRange({
-    required DateTime startInclusive,
-    required DateTime endExclusive,
-  }) {
-    return state.expenses
-        .where(
-          (e) => !e.date.isBefore(startInclusive) && e.date.isBefore(endExclusive),
-        )
-        .fold<double>(0.0, (s, e) => s + e.amount);
-  }
+  required DateTime startInclusive,
+  required DateTime endExclusive,
+  required int cycleRemainingDays,
+}) {
+  return state.expenses
+      .where(
+        (e) => !e.date.isBefore(startInclusive) && e.date.isBefore(endExclusive),
+      )
+      .fold<double>(0.0, (s, e) {
+        switch (e.impact) {
+          case ExpenseImpact.daily:
+            return s + e.amount;
+          case ExpenseImpact.weekly:
+            return s + (e.amount / 7.0);
+          case ExpenseImpact.cycle:
+            return s + (e.amount / cycleRemainingDays);
+        }
+      });
+}
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +139,8 @@ class DashboardScreen extends StatelessWidget {
 final cycle = SalaryCycleService.estimateCycle(
   today: now,
   paydayDay: state.settings.paydayDay,
+  lastSalaryDateIso: state.settings.lastSalaryDateIso,
+  useRealSalaryCycle: state.settings.useRealSalaryCycle,
 );
 
 String two(int n) => n.toString().padLeft(2, '0');
@@ -255,30 +285,39 @@ final spentToday = state.expenses
         final ctaText = (noIncome || isOver) ? 'Aggiungi entrata' : 'Aggiungi spesa';
         final ctaIcon = (noIncome || isOver) ? Icons.south_west : Icons.add;
 
-        final ranges = _fourWeekRanges(now);
-        final currentWeek = _currentWeekIndex(now, ranges);
+       final ranges = _fourWeekRangesFromCycle(
+  cycleStart: cycle.start,
+  cycleEnd: cycle.end,
+);
+
+final currentWeek = _currentWeekIndexFromCycle(now, ranges);
         final weekBudget = variableBudget <= 0 ? 0.0 : (variableBudget / 4.0);
 
         final weeklyCards = <_WeekCardData>[];
         for (final r in ranges) {
-          final start = DateTime(now.year, now.month, r.startDay);
-          final endExclusive =
-              DateTime(now.year, now.month, r.endDay).add(const Duration(days: 1));
-          final spentWeek =
-              _spentInRange(startInclusive: start, endExclusive: endExclusive);
-          final remainingWeek = weekBudget - spentWeek;
+  final start = DateTime(r.start.year, r.start.month, r.start.day);
+  final endExclusive =
+      DateTime(r.end.year, r.end.month, r.end.day).add(const Duration(days: 1));
 
-          weeklyCards.add(
-            _WeekCardData(
-              label: 'Sett. ${r.weekIndex + 1}',
-              rangeText: '${r.startDay}-${r.endDay}',
-              budget: weekBudget,
-              spent: spentWeek,
-              remaining: remainingWeek,
-              isCurrent: r.weekIndex == currentWeek,
-            ),
-          );
-        }
+  final spentWeek = _spentInRange(
+    startInclusive: start,
+    endExclusive: endExclusive,
+    cycleRemainingDays: cycleRemainingDays,
+  );
+
+  final remainingWeek = weekBudget - spentWeek;
+
+  weeklyCards.add(
+    _WeekCardData(
+      label: 'Sett. ${r.weekIndex + 1}',
+      rangeText: _rangeLabel(r.start, r.end),
+      budget: weekBudget,
+      spent: spentWeek,
+      remaining: remainingWeek,
+      isCurrent: r.weekIndex == currentWeek,
+    ),
+  );
+}
 
         final recent = <_MoveRow>[];
         for (final e in state.expenses) {
@@ -1218,12 +1257,12 @@ class _WeekCardData {
 
 class _WeekRange {
   final int weekIndex;
-  final int startDay;
-  final int endDay;
+  final DateTime start;
+  final DateTime end;
 
   const _WeekRange({
     required this.weekIndex,
-    required this.startDay,
-    required this.endDay,
+    required this.start,
+    required this.end,
   });
 }

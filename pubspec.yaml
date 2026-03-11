@@ -1,7 +1,7 @@
 name: quantoposso
 description: App semplice per controllo spese (giornaliere + fisse) con obiettivi e promemoria.
 publish_to: "none"
-version: 1.0.0+610
+version: 1.0.0+615
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -33,10 +33,9 @@ flutter:
     - assets/images/
     - assets/icon/
 
-flutter_icons:
+flutter_launcher_icons:
   android: true
-  ios: false
+  ios: true
   image_path: "assets/icon/iconanuova.png"
-
+  adaptive_icon_background: "#ffffff"
   adaptive_icon_foreground: "assets/icon/iconanuova.png"
-  adaptive_icon_background: "#2563EB"
