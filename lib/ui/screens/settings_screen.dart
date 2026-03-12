@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
-
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
@@ -200,7 +201,104 @@ Future<void> _clearAvatar() async {
       ),
     );
   }
+Future<void> _openEmailSupport() async {
+  final uri = Uri(
+    scheme: 'mailto',
+    path: 'quantoposso.app@gmail.com',
+    query: 'subject=Supporto Quanto Posso',
+  );
 
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+    return;
+  }
+
+  if (!mounted) return;
+  await Clipboard.setData(const ClipboardData(text: 'quantoposso.app@gmail.com'));
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Email copiata: quantoposso.app@gmail.com'),
+    ),
+  );
+}
+
+
+
+void _openSupportPage() {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => const _SupportPage(),
+    ),
+  );
+}
+
+void _openPrivacyPage() {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => const _PrivacyPage(),
+    ),
+  );
+}
+
+void _openTermsPage() {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => const _TermsPage(),
+    ),
+  );
+}
+
+String get _privacyText => '''
+Ultimo aggiornamento: 2026
+
+Quanto Posso è un'app progettata per aiutare gli utenti a gestire spese, entrate e budget personale.
+
+Raccolta dei dati
+L'app non raccoglie dati personali identificabili come nome, email o numero di telefono per finalità di tracciamento o marketing.
+
+Dati inseriti dall'utente
+Le informazioni inserite nell'app, come spese, entrate, obiettivi di risparmio e impostazioni, vengono salvate principalmente sul dispositivo dell'utente.
+
+Condivisione dei dati
+Quanto Posso non vende e non condivide i dati personali dell'utente con terze parti per finalità pubblicitarie.
+
+Sicurezza
+L'app adotta misure ragionevoli per proteggere i dati gestiti sul dispositivo.
+
+Eliminazione dei dati
+L'utente può eliminare i propri dati direttamente dall'app oppure rimuovendola dal dispositivo, salvo eventuali dati salvati in backup locali del sistema operativo.
+
+Contatti
+Per domande sulla privacy puoi scrivere a:
+
+quantoposso.app@gmail.com
+''';
+
+String get _termsText => '''
+Termini di utilizzo – Quanto Posso
+
+Quanto Posso è un'app di supporto alla gestione del budget personale.
+
+L'app non fornisce consulenza finanziaria, fiscale, legale o professionale. I contenuti e i calcoli presenti nell'app hanno finalità esclusivamente organizzative e informative.
+
+L'utente è responsabile dei dati inseriti e delle decisioni prese sulla base delle informazioni mostrate dall'app.
+
+Alcune funzionalità dell'app possono essere gratuite, mentre altre potrebbero essere disponibili in futuro come funzionalità premium o acquisti in-app.
+
+Utilizzando l'app, l'utente accetta questi termini.
+
+Per supporto o informazioni:
+quantoposso.app@gmail.com
+''';
+
+void _showAppInfo() {
+  showAboutDialog(
+    context: context,
+    applicationName: 'Quanto Posso',
+    applicationVersion: 'v1.0',
+    applicationLegalese: '© 2026 Quanto Posso',
+  );
+}
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -557,6 +655,67 @@ Row(
                       ),
                     ),
                   ),
+                const SizedBox(height: 12),
+
+_GlassCard(
+  child: Padding(
+    padding: const EdgeInsets.all(14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+
+        Text(
+          'Supporto',
+          style: theme.textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w900),
+        ),
+
+        const SizedBox(height: 10),
+
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.support_agent_outlined),
+          title: const Text('Assistenza'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: _openSupportPage,
+        ),
+
+        const Divider(),
+
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.privacy_tip_outlined),
+          title: const Text('Privacy Policy'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: _openPrivacyPage,
+        ),
+
+        const Divider(),
+
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.gavel_outlined),
+          title: const Text('Termini e condizioni'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: _openTermsPage,
+        ),
+
+        const Divider(),
+
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.mail_outline),
+          title: const Text('Contattaci'),
+          subtitle: const Text('quantoposso.app@gmail.com'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: _openEmailSupport,
+        ),
+      ],
+    ),
+  ),
+),
+
+
                 ],
               ),
             ],
@@ -651,7 +810,62 @@ class _GlassCard extends StatelessWidget {
               ),
             ],
           ),
-          child: child,
+          child: child,   
+        ),
+
+      ),
+    );
+  }
+}
+class _SupportPage extends StatelessWidget {
+  const _SupportPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Assistenza')),
+      body: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text(
+          'Hai bisogno di aiuto con Quanto Posso?\n\n'
+          'Puoi contattare il supporto scrivendo a:\n\n'
+          'quantoposso.app@gmail.com',
+        ),
+      ),
+    );
+  }
+}
+class _PrivacyPage extends StatelessWidget {
+  const _PrivacyPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Privacy Policy')),
+      body: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text(
+          'Quanto Posso non raccoglie dati personali.\n\n'
+          'Le informazioni inserite nell\'app vengono salvate '
+          'principalmente sul dispositivo dell\'utente.',
+        ),
+      ),
+    );
+  }
+}
+class _TermsPage extends StatelessWidget {
+  const _TermsPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Termini e condizioni')),
+      body: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text(
+          'Quanto Posso è un\'app di supporto alla gestione '
+          'del budget personale.\n\n'
+          'L\'app non fornisce consulenza finanziaria.',
         ),
       ),
     );
