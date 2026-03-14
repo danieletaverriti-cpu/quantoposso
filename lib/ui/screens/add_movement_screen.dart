@@ -252,10 +252,14 @@ final isExpense = selectedMode == 0;
 final Color activeColor = isExpense ? const Color(0xFFEF4444) : const Color(0xFF16A34A); // rosso / verde
     final expenseCategories = <String>[
   'Abbigliamento',
+  'Animali',
   'Auto',
   'Bar',
   'Bollette',
   'Casa',
+  'Cura Personale',
+  'Hobby',
+  'Farmacia',
   'Regali',
   'Ristorante',
   'Salute',
@@ -263,6 +267,7 @@ final Color activeColor = isExpense ? const Color(0xFFEF4444) : const Color(0xFF
   'Sport',
   'Svago',
   'Tasse',
+  'Tecnologia',
   'Trasporti',
   'Varie',
   'Viaggi',

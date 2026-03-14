@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:quantoposso/app/state.dart';
 import 'package:quantoposso/data/models.dart';
@@ -43,15 +44,47 @@ Future<void> _pickAvatar() async {
   );
   if (xfile == null) return;
 
+  final dir = await getApplicationDocumentsDirectory();
+  final avatarDir = Directory('${dir.path}/profile');
+
+  if (!await avatarDir.exists()) {
+    await avatarDir.create(recursive: true);
+  }
+
+  final savedFile = File('${avatarDir.path}/avatar.jpg');
+  await File(xfile.path).copy(savedFile.path);
+
   final s = widget.state.settings;
-  final updated = s.copyWith(profileAvatarPath: xfile.path);
+  final updated = s.copyWith(profileAvatarPath: savedFile.path);
   await widget.state.saveSettings(updated);
+
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Foto profilo aggiornata ✅')),
+  );
 }
 
 Future<void> _clearAvatar() async {
   final s = widget.state.settings;
+
+  // Se esiste un file salvato lo eliminiamo
+  if (s.profileAvatarPath != null && s.profileAvatarPath!.isNotEmpty) {
+    final file = File(s.profileAvatarPath!);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  // Puliamo il path salvato nelle impostazioni
   final updated = s.copyWith(clearProfileAvatarPath: true);
   await widget.state.saveSettings(updated);
+
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Foto profilo rimossa'),
+    ),
+  );
 }
   @override
   void dispose() {

@@ -168,6 +168,10 @@ class SettingsModel {
   final int paydayDay;
   final String? lastSalaryDateIso;
   final bool useRealSalaryCycle;
+  final bool isProUnlocked;
+  final String? proPlan; // monthly / yearly
+  final String? proExpiryDateIso;
+  final bool proTrialUsed;
 
   /// Risparmio mensile
   final double monthlySaving;
@@ -220,6 +224,12 @@ class SettingsModel {
     this.eveningStatusHour = 21,
     this.eveningStatusMinute = 30,
 
+    //abbonamento
+    this.isProUnlocked = false,
+    this.proPlan,
+    this.proExpiryDateIso,
+    this.proTrialUsed = false,
+
     // ✅ nuova
     this.expenseReminderEnabled = true,
     this.expenseReminderHour = 20,
@@ -259,7 +269,11 @@ class SettingsModel {
         'eveningStatusHour': eveningStatusHour,
         'eveningStatusMinute': eveningStatusMinute,
 
-      
+        //abbonamento
+        'isProUnlocked': isProUnlocked,
+        'proPlan': proPlan,
+        'proExpiryDateIso': proExpiryDateIso,
+        'proTrialUsed': proTrialUsed,
 
         // ✅ nuova
         'expenseReminderEnabled': expenseReminderEnabled,
@@ -299,6 +313,12 @@ class SettingsModel {
         eveningStatusHour: (m['eveningStatusHour'] as int?) ?? 21,
         eveningStatusMinute: (m['eveningStatusMinute'] as int?) ?? 30,
 
+        //abbonamento
+        isProUnlocked: (m['isProUnlocked'] as bool?) ?? false,
+        proPlan: m['proPlan'] as String?,
+        proExpiryDateIso: m['proExpiryDateIso'] as String?,
+        proTrialUsed: (m['proTrialUsed'] as bool?) ?? false,
+
         // ✅ nuova (fallback ai default)
         expenseReminderEnabled: (m['expenseReminderEnabled'] as bool?) ?? true,
         expenseReminderHour: (m['expenseReminderHour'] as int?) ?? 21,
@@ -337,6 +357,14 @@ class SettingsModel {
     bool? eveningStatusEnabled,
     int? eveningStatusHour,
     int? eveningStatusMinute,
+
+    //abbonamento
+    bool? isProUnlocked,
+    String? proPlan,
+    String? proExpiryDateIso,
+    bool? proTrialUsed,
+    bool clearProPlan = false,
+    bool clearProExpiryDateIso = false,
 
     // ✅ nuova
     bool? expenseReminderEnabled,
@@ -383,6 +411,14 @@ useRealSalaryCycle: useRealSalaryCycle ?? this.useRealSalaryCycle,
       eveningStatusEnabled: eveningStatusEnabled ?? this.eveningStatusEnabled,
       eveningStatusHour: eveningStatusHour ?? this.eveningStatusHour,
       eveningStatusMinute: eveningStatusMinute ?? this.eveningStatusMinute,
+
+      //abbonamento
+      isProUnlocked: isProUnlocked ?? this.isProUnlocked,
+      proPlan: clearProPlan ? null : (proPlan ?? this.proPlan),
+      proExpiryDateIso: clearProExpiryDateIso
+      ? null
+      : (proExpiryDateIso ?? this.proExpiryDateIso),
+      proTrialUsed: proTrialUsed ?? this.proTrialUsed,
 
       // ✅ nuova
       expenseReminderEnabled: expenseReminderEnabled ?? this.expenseReminderEnabled,

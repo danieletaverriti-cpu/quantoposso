@@ -15,11 +15,24 @@ class AppState extends ChangeNotifier {
   List<Goal> goals = [];
 
   SettingsModel settings = const SettingsModel(
+    
     dailyReminderEnabled: true,
     dailyReminderHour: 19,
     dailyReminderMinute: 30,
     monthlySaving: 300,
   );
+  // ---------------- PRO ----------------
+
+bool get isProActive {
+  if (!settings.isProUnlocked) return false;
+
+  if (settings.proExpiryDateIso == null) return true;
+
+  final expiry = DateTime.tryParse(settings.proExpiryDateIso!);
+  if (expiry == null) return true;
+
+  return DateTime.now().isBefore(expiry);
+}
 
   // ✅ onboarding profile
   UserProfile? profile;
@@ -39,6 +52,54 @@ class AppState extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  //attivazioe versione pro
+
+   Future<void> unlockPro({
+  required String plan,
+  required DateTime expiry,
+}) async {
+  final updated = settings.copyWith(
+    isProUnlocked: true,
+    proPlan: plan,
+    proExpiryDateIso: expiry.toIso8601String(),
+  );
+
+  await repo.saveSettings(updated);
+  settings = updated;
+  notifyListeners();
+}
+
+//versione di prova
+Future<void> activateTrial() async {
+  if (settings.proTrialUsed) return;
+
+  final expiry = DateTime.now().add(const Duration(days: 7));
+
+  final updated = settings.copyWith(
+    isProUnlocked: true,
+    proPlan: "trial",
+    proExpiryDateIso: expiry.toIso8601String(),
+    proTrialUsed: true,
+  );
+
+  await repo.saveSettings(updated);
+  settings = updated;
+  notifyListeners();
+}
+
+//revoca pro
+Future<void> revokePro() async {
+  final updated = settings.copyWith(
+    isProUnlocked: false,
+    clearProPlan: true,
+    clearProExpiryDateIso: true,
+  );
+
+  await repo.saveSettings(updated);
+  settings = updated;
+  notifyListeners();
+}
 
   Future<void> refresh() async {
     expenses = repo.getExpenses();
