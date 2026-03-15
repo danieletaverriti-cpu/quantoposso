@@ -114,7 +114,7 @@ class ExportService {
 
     final dir = await getApplicationDocumentsDirectory();
     final timestamp = _fileDateFormat.format(DateTime.now());
-    final file = File('${dir.path}/quantoposso_report_$timestamp.pdf');
+    final file = File('${dir.path}/quantopossov2_report_$timestamp.pdf');
 
     await file.writeAsBytes(await pdf.save(), flush: true);
 
