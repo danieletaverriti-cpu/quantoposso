@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui';
+
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -54,10 +56,10 @@ class ExportService {
     await file.writeAsString(buffer.toString(), flush: true);
 
     await Share.shareXFiles(
-  [XFile(file.path)],
-  text: 'Export CSV Quanto Posso',
-  sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
-);
+      [XFile(file.path)],
+      text: 'Export CSV Quanto Posso',
+      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+    );
   }
 
   Future<void> exportPdf({
@@ -78,16 +80,18 @@ class ExportService {
     );
 
     final pdf = pw.Document();
-
     final logo = await _loadLogoProvider();
+
+    final baseFont = await PdfGoogleFonts.interRegular();
+    final boldFont = await PdfGoogleFonts.interBold();
 
     pdf.addPage(
       pw.MultiPage(
         pageTheme: pw.PageTheme(
           margin: const pw.EdgeInsets.all(24),
           theme: pw.ThemeData.withFont(
-            base: await PdfGoogleFonts.interRegular(),
-            bold: await PdfGoogleFonts.interBold(),
+            base: baseFont,
+            bold: boldFont,
           ),
         ),
         build: (context) => [
@@ -99,7 +103,7 @@ class ExportService {
           pw.SizedBox(height: 18),
           _buildInsights(report),
           pw.SizedBox(height: 18),
-          _buildCategoryChart(report),
+          _buildCategorySection(report),
           pw.SizedBox(height: 18),
           _buildTopCategories(report),
           pw.SizedBox(height: 18),
@@ -115,10 +119,10 @@ class ExportService {
     await file.writeAsBytes(await pdf.save(), flush: true);
 
     await Share.shareXFiles(
-  [XFile(file.path)],
-  text: 'Report PDF Quanto Posso',
-  sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
-);
+      [XFile(file.path)],
+      text: 'Report PDF Quanto Posso',
+      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+    );
   }
 
   Future<List<_ExportMovement>> _loadMovements({
@@ -191,7 +195,8 @@ class ExportService {
     final Map<String, int> expenseCountByCategory = {};
 
     for (final movement in expenses) {
-      final category = movement.category.trim().isEmpty ? 'Altro' : movement.category;
+      final category =
+          movement.category.trim().isEmpty ? 'Altro' : movement.category;
       expensesByCategory[category] =
           (expensesByCategory[category] ?? 0) + movement.amount;
       expenseCountByCategory[category] =
@@ -220,9 +225,11 @@ class ExportService {
         .take(3)
         .fold<double>(0, (sum, item) => sum + item.amount);
 
-    final top3Percent = totalExpense > 0 ? (top3Total / totalExpense) * 100 : 0.0;
+    final top3Percent =
+        totalExpense > 0 ? (top3Total / totalExpense) * 100 : 0.0;
 
-    final averageExpense = expenses.isEmpty ? 0.0 : totalExpense / expenses.length;
+    final averageExpense =
+        expenses.isEmpty ? 0.0 : totalExpense / expenses.length;
 
     return _ExportReportData(
       generatedAt: DateTime.now(),
@@ -336,6 +343,9 @@ class ExportService {
   }
 
   pw.Widget _buildHeroCard(_ExportReportData report) {
+    final balanceColor =
+        report.balance >= 0 ? PdfColor.fromHex('#22C55E') : PdfColor.fromHex('#EF4444');
+
     return pw.Container(
       width: double.infinity,
       padding: const pw.EdgeInsets.all(18),
@@ -366,6 +376,34 @@ class ExportService {
               color: PdfColor.fromHex('#D8E1EE'),
               fontSize: 10.5,
               lineSpacing: 2,
+            ),
+          ),
+          pw.SizedBox(height: 16),
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('#5A667A'),
+              borderRadius: pw.BorderRadius.circular(14),
+            ),
+            child: pw.Row(
+              children: [
+                pw.Text(
+                  'Saldo periodo',
+                  style: pw.TextStyle(
+                    color: PdfColors.white,
+                    fontSize: 10.5,
+                  ),
+                ),
+                pw.Spacer(),
+                pw.Text(
+                  _currency.format(report.balance),
+                  style: pw.TextStyle(
+                    color: balanceColor,
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -457,6 +495,10 @@ class ExportService {
         'La spesa media per movimento è di ${_currency.format(report.averageExpense)}.',
       if (report.expensesByCategory.isNotEmpty)
         'Le prime 3 categorie coprono il ${report.top3Percent.toStringAsFixed(1)}% del totale spese.',
+      if (report.balance >= 0)
+        'Nel periodo selezionato il saldo resta positivo, con una differenza di ${_currency.format(report.balance)} tra entrate e uscite.'
+      else
+        'Nel periodo selezionato le uscite superano le entrate di ${_currency.format(report.balance.abs())}.',
     ];
 
     return pw.Container(
@@ -512,8 +554,9 @@ class ExportService {
     );
   }
 
-  pw.Widget _buildCategoryChart(_ExportReportData report) {
+  pw.Widget _buildCategorySection(_ExportReportData report) {
     final categories = report.expensesByCategory.take(6).toList();
+    final total = categories.fold<double>(0, (sum, e) => sum + e.amount);
     final maxValue = categories.isEmpty
         ? 1.0
         : categories.map((e) => e.amount).reduce(math.max);
@@ -530,7 +573,7 @@ class ExportService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'Spese per categoria',
+            'Distribuzione spese',
             style: pw.TextStyle(
               fontSize: 14,
               fontWeight: pw.FontWeight.bold,
@@ -539,13 +582,13 @@ class ExportService {
           ),
           pw.SizedBox(height: 6),
           pw.Text(
-            'Distribuzione delle uscite nel periodo selezionato',
+            'Le categorie principali del periodo selezionato',
             style: pw.TextStyle(
               fontSize: 10,
               color: PdfColor.fromHex('#6B7280'),
             ),
           ),
-          pw.SizedBox(height: 16),
+          pw.SizedBox(height: 18),
           if (categories.isEmpty)
             pw.Text(
               'Nessuna spesa disponibile per generare il grafico.',
@@ -554,62 +597,144 @@ class ExportService {
                 color: PdfColor.fromHex('#6B7280'),
               ),
             )
-          else
-            ...categories.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-              final percent = maxValue > 0 ? item.amount / maxValue : 0.0;
-              final color = _chartColors[index % _chartColors.length];
-
-              return pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 12),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Row(
-                      children: [
-                        pw.Expanded(
-                          child: pw.Text(
-                            item.category,
-                            style: pw.TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: pw.FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        pw.Text(
-                          _currency.format(item.amount),
-                          style: pw.TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColor.fromHex('#1F2937'),
-                          ),
-                        ),
-                      ],
+          else ...[
+            for (int i = 0; i < categories.length; i++)
+              _categoryBarRow(
+                item: categories[i],
+                color: _chartColors[i % _chartColors.length],
+                maxValue: maxValue,
+                totalValue: total,
+              ),
+            pw.SizedBox(height: 10),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                color: PdfColor.fromHex('#F9FBFF'),
+                borderRadius: pw.BorderRadius.circular(14),
+              ),
+              child: pw.Row(
+                children: [
+                  pw.Container(
+                    width: 12,
+                    height: 12,
+                    decoration: pw.BoxDecoration(
+                      color: PdfColor.fromHex('#2F80FF'),
+                      shape: pw.BoxShape.circle,
                     ),
-                    pw.SizedBox(height: 5),
-                    pw.Container(
-                      height: 10,
+                  ),
+                  pw.SizedBox(width: 8),
+                  pw.Expanded(
+                    child: pw.Text(
+                      report.mainCategory == null
+                          ? 'Nessuna categoria dominante rilevata.'
+                          : 'Categoria dominante: ${report.mainCategory!.category}',
+                      style: pw.TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromHex('#1F2937'),
+                      ),
+                    ),
+                  ),
+                  if (report.mainCategory != null)
+                    pw.Text(
+                      '${report.mainCategoryPercent.toStringAsFixed(1)}%',
+                      style: pw.TextStyle(
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromHex('#2F80FF'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _categoryBarRow({
+    required _CategoryAmount item,
+    required PdfColor color,
+    required double maxValue,
+    required double totalValue,
+  }) {
+    final widthFactor = maxValue > 0 ? item.amount / maxValue : 0.0;
+    final percent = totalValue > 0 ? (item.amount / totalValue) * 100 : 0.0;
+
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 12),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            children: [
+              pw.Container(
+                width: 10,
+                height: 10,
+                decoration: pw.BoxDecoration(
+                  color: color,
+                  shape: pw.BoxShape.circle,
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: pw.Text(
+                  item.category,
+                  style: pw.TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromHex('#1F2937'),
+                  ),
+                ),
+              ),
+              pw.Text(
+                _currency.format(item.amount),
+                style: pw.TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromHex('#1F2937'),
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 4),
+          pw.Row(
+            children: [
+              pw.Expanded(
+                child: pw.Container(
+                  height: 10,
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#EEF2F7'),
+                    borderRadius: pw.BorderRadius.circular(999),
+                  ),
+                  child: pw.Align(
+                    alignment: pw.Alignment.centerLeft,
+                    child: pw.Container(
+                      width: 280 * widthFactor,
                       decoration: pw.BoxDecoration(
-                        color: PdfColor.fromHex('#EEF2F7'),
+                        color: color,
                         borderRadius: pw.BorderRadius.circular(999),
                       ),
-                      child: pw.Row(
-                        children: [
-                          pw.Container(
-                            width: 420 * percent,
-                            decoration: pw.BoxDecoration(
-                              color: color,
-                              borderRadius: pw.BorderRadius.circular(999),
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                  ],
+                  ),
                 ),
-              );
-            }),
+              ),
+              pw.SizedBox(width: 10),
+              pw.SizedBox(
+                width: 42,
+                child: pw.Text(
+                  '${percent.toStringAsFixed(1)}%',
+                  textAlign: pw.TextAlign.right,
+                  style: pw.TextStyle(
+                    fontSize: 9.5,
+                    color: PdfColor.fromHex('#6B7280'),
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -650,6 +775,7 @@ class ExportService {
             ...top.asMap().entries.map((entry) {
               final rank = entry.key + 1;
               final item = entry.value;
+              final color = _chartColors[entry.key % _chartColors.length];
 
               return pw.Padding(
                 padding: const pw.EdgeInsets.only(bottom: 10),
@@ -666,7 +792,7 @@ class ExportService {
                         height: 24,
                         alignment: pw.Alignment.center,
                         decoration: pw.BoxDecoration(
-                          color: PdfColor.fromHex('#2F80FF'),
+                          color: color,
                           shape: pw.BoxShape.circle,
                         ),
                         child: pw.Text(
@@ -749,12 +875,12 @@ class ExportService {
               color: PdfColor.fromHex('#E7ECF5'),
               width: 0.6,
             ),
-            columnWidths: {
-              0: const pw.FlexColumnWidth(1.2),
-              1: const pw.FlexColumnWidth(1.2),
-              2: const pw.FlexColumnWidth(1.4),
-              3: const pw.FlexColumnWidth(2.2),
-              4: const pw.FlexColumnWidth(1.2),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(1.2),
+              1: pw.FlexColumnWidth(1.2),
+              2: pw.FlexColumnWidth(1.5),
+              3: pw.FlexColumnWidth(2.2),
+              4: pw.FlexColumnWidth(1.2),
             },
             children: [
               pw.TableRow(
@@ -828,13 +954,15 @@ class ExportService {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(8),
       child: pw.Align(
-        alignment: alignRight ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
+        alignment:
+            alignRight ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
         child: pw.Text(
           text,
           style: pw.TextStyle(
             fontSize: 9.5,
             color: textColor ?? PdfColor.fromHex('#374151'),
-            fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+            fontWeight:
+                bold ? pw.FontWeight.bold : pw.FontWeight.normal,
           ),
         ),
       ),
