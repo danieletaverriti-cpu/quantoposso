@@ -253,7 +253,7 @@ Future<void> _clearAvatar() async {
  void _openExport() {
   Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => const ExportScreen(),
+      builder: (_) => ExportScreen(state: widget.state),
     ),
   );
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:quantoposso/app/state.dart';
 
 import '../../services/export_service.dart';
 
@@ -10,7 +11,12 @@ enum ExportRangeType {
 }
 
 class ExportScreen extends StatefulWidget {
-  const ExportScreen({super.key});
+  final AppState state;
+
+  const ExportScreen({
+    super.key,
+    required this.state,
+  });
 
   @override
   State<ExportScreen> createState() => _ExportScreenState();
@@ -18,7 +24,7 @@ class ExportScreen extends StatefulWidget {
 
 class _ExportScreenState extends State<ExportScreen> {
   bool _isLoading = false;
-  String _selectedFormat = 'csv';
+  String _selectedFormat = 'pdf';
   ExportRangeType _rangeType = ExportRangeType.currentCycle;
 
   DateTime? _startDate;
@@ -71,23 +77,66 @@ class _ExportScreenState extends State<ExportScreen> {
     }
   }
 
+  DateTime _firstDayOfMonth(DateTime d) => DateTime(d.year, d.month, 1);
+
+  DateTime _lastDayOfMonth(DateTime d) {
+    final firstDayNextMonth =
+        (d.month == 12) ? DateTime(d.year + 1, 1, 1) : DateTime(d.year, d.month + 1, 1);
+    return firstDayNextMonth.subtract(const Duration(days: 1));
+  }
+
   Future<void> _export() async {
     DateTime? startDate;
     DateTime? endDate;
 
-    if (_rangeType == ExportRangeType.custom) {
-      if (_startDate == null || _endDate == null) {
-        _showMessage('Seleziona una data iniziale e finale');
-        return;
-      }
+    final now = DateTime.now();
 
-      if (_endDate!.isBefore(_startDate!)) {
-        _showMessage('La data finale non può essere prima di quella iniziale');
-        return;
-      }
+    switch (_rangeType) {
+      case ExportRangeType.currentCycle:
+        final cycleStartDay = 1;
+        final today = DateTime(now.year, now.month, now.day);
 
-      startDate = _startDate;
-      endDate = _endDate;
+        DateTime currentStart;
+        DateTime currentEnd;
+
+        if (today.day >= cycleStartDay) {
+          currentStart = DateTime(today.year, today.month, cycleStartDay);
+          currentEnd = (today.month == 12)
+              ? DateTime(today.year + 1, 1, cycleStartDay).subtract(const Duration(days: 1))
+              : DateTime(today.year, today.month + 1, cycleStartDay).subtract(const Duration(days: 1));
+        } else {
+          final prevMonth = (today.month == 1)
+              ? DateTime(today.year - 1, 12, 1)
+              : DateTime(today.year, today.month - 1, 1);
+
+          currentStart = DateTime(prevMonth.year, prevMonth.month, cycleStartDay);
+          currentEnd = DateTime(today.year, today.month, cycleStartDay).subtract(const Duration(days: 1));
+        }
+
+        startDate = currentStart;
+        endDate = currentEnd;
+        break;
+
+      case ExportRangeType.lastMonth:
+        final lastMonth = DateTime(now.year, now.month - 1, 1);
+        startDate = _firstDayOfMonth(lastMonth);
+        endDate = _lastDayOfMonth(lastMonth);
+        break;
+
+      case ExportRangeType.custom:
+        if (_startDate == null || _endDate == null) {
+          _showMessage('Seleziona una data iniziale e finale');
+          return;
+        }
+
+        if (_endDate!.isBefore(_startDate!)) {
+          _showMessage('La data finale non può essere prima di quella iniziale');
+          return;
+        }
+
+        startDate = _startDate;
+        endDate = _endDate;
+        break;
     }
 
     setState(() {
@@ -97,11 +146,13 @@ class _ExportScreenState extends State<ExportScreen> {
     try {
       if (_selectedFormat == 'csv') {
         await ExportService.instance.exportCsv(
+          state: widget.state,
           startDate: startDate,
           endDate: endDate,
         );
       } else {
         await ExportService.instance.exportPdf(
+          state: widget.state,
           startDate: startDate,
           endDate: endDate,
         );
@@ -234,7 +285,7 @@ class _ExportScreenState extends State<ExportScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Esporta i movimenti in CSV o PDF mantenendo lo stile semplice e veloce di Quanto Posso.',
+                  'Esporta i movimenti in CSV o PDF con un report ordinato e professionale.',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.88),
                     fontSize: 14,
@@ -278,7 +329,6 @@ class _ExportScreenState extends State<ExportScreen> {
               ],
             ),
           ),
-
           Transform.translate(
             offset: const Offset(0, -22),
             child: Padding(
@@ -310,7 +360,7 @@ class _ExportScreenState extends State<ExportScreen> {
                         Expanded(
                           child: _formatCard(
                             title: 'PDF',
-                            subtitle: 'Per condividere',
+                            subtitle: 'Report premium',
                             icon: Icons.picture_as_pdf_rounded,
                             accent: _warningYellow,
                             selected: _selectedFormat == 'pdf',
@@ -332,7 +382,7 @@ class _ExportScreenState extends State<ExportScreen> {
                       children: [
                         _rangeTile(
                           title: 'Ciclo attuale',
-                          subtitle: 'Esporta il periodo corrente',
+                          subtitle: 'Usa il ciclo stipendio impostato nell’app',
                           icon: Icons.calendar_month_rounded,
                           selected: _rangeType == ExportRangeType.currentCycle,
                           onTap: () {
@@ -493,9 +543,7 @@ class _ExportScreenState extends State<ExportScreen> {
               widthFactor: _selectedFormat == 'csv' ? 0.55 : 0.85,
               child: Container(
                 decoration: BoxDecoration(
-                  color: _selectedFormat == 'csv'
-                      ? _successGreen
-                      : _warningYellow,
+                  color: _selectedFormat == 'csv' ? _successGreen : _warningYellow,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -611,9 +659,7 @@ class _ExportScreenState extends State<ExportScreen> {
             Row(
               children: [
                 Icon(
-                  selected
-                      ? Icons.check_circle_rounded
-                      : Icons.radio_button_off_rounded,
+                  selected ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
                   size: 18,
                   color: selected ? accent : Colors.grey,
                 ),
@@ -661,9 +707,7 @@ class _ExportScreenState extends State<ExportScreen> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: selected
-                    ? _primaryBlue.withOpacity(0.14)
-                    : const Color(0xFFEFF4FB),
+                color: selected ? _primaryBlue.withOpacity(0.14) : const Color(0xFFEFF4FB),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
@@ -697,9 +741,7 @@ class _ExportScreenState extends State<ExportScreen> {
               ),
             ),
             Icon(
-              selected
-                  ? Icons.radio_button_checked_rounded
-                  : Icons.radio_button_off_rounded,
+              selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
               color: selected ? _primaryBlue : Colors.grey,
             ),
           ],
@@ -795,8 +837,8 @@ class _ExportScreenState extends State<ExportScreen> {
                 Expanded(
                   child: Text(
                     _selectedFormat == 'csv'
-                        ? 'CSV è perfetto per Excel, filtri, formule e analisi dei movimenti.'
-                        : 'PDF è perfetto per condividere, salvare e archiviare un report pulito.',
+                        ? 'CSV è perfetto per Excel, filtri, formule e analisi manuali.'
+                        : 'PDF crea un report premium con riepilogo, categorie e analisi della spesa.',
                     style: const TextStyle(
                       color: _textDark,
                       fontSize: 13,
