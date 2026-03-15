@@ -201,6 +201,7 @@ class SettingsModel {
   final String? profileGoal;
   final String? profileAvatarPath;
   final bool notificationsPermissionRequested;
+  final bool proUnlocked;
 
   const SettingsModel({
     // legacy
@@ -244,6 +245,7 @@ class SettingsModel {
     this.profileGoal,
     this.profileAvatarPath,
     this.notificationsPermissionRequested = false,
+    this.proUnlocked = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -274,6 +276,7 @@ class SettingsModel {
         'proPlan': proPlan,
         'proExpiryDateIso': proExpiryDateIso,
         'proTrialUsed': proTrialUsed,
+        'proUnlocked' : proUnlocked,
 
         // ✅ nuova
         'expenseReminderEnabled': expenseReminderEnabled,
@@ -318,6 +321,7 @@ class SettingsModel {
         proPlan: m['proPlan'] as String?,
         proExpiryDateIso: m['proExpiryDateIso'] as String?,
         proTrialUsed: (m['proTrialUsed'] as bool?) ?? false,
+        proUnlocked: (m['proUnlocked'] as bool?) ?? false,
 
         // ✅ nuova (fallback ai default)
         expenseReminderEnabled: (m['expenseReminderEnabled'] as bool?) ?? true,
@@ -365,6 +369,7 @@ class SettingsModel {
     bool? proTrialUsed,
     bool clearProPlan = false,
     bool clearProExpiryDateIso = false,
+    bool? proUnlocked, 
 
     // ✅ nuova
     bool? expenseReminderEnabled,
@@ -419,6 +424,7 @@ useRealSalaryCycle: useRealSalaryCycle ?? this.useRealSalaryCycle,
       ? null
       : (proExpiryDateIso ?? this.proExpiryDateIso),
       proTrialUsed: proTrialUsed ?? this.proTrialUsed,
+      proUnlocked: proUnlocked ?? this.proUnlocked,
 
       // ✅ nuova
       expenseReminderEnabled: expenseReminderEnabled ?? this.expenseReminderEnabled,

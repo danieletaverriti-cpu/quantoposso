@@ -12,6 +12,9 @@ import 'package:quantoposso/data/models.dart';
 import 'package:quantoposso/services/budget_math.dart';
 import 'package:quantoposso/services/notifications.dart';
 import 'package:quantoposso/services/salary_cycle.dart';
+import 'package:quantoposso/ui/screens/pro_screen.dart';
+import 'package:quantoposso/ui/screens/export_screen.dart';
+
 
 class SettingsScreen extends StatefulWidget {
   final AppState state;
@@ -234,6 +237,26 @@ Future<void> _clearAvatar() async {
       ),
     );
   }
+
+/* da attivare quando si lancia adesso disattivata per check funzione
+ void _openExport() {
+  if (!widget.state.isProActive) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProScreen(state: widget.state),
+      ),
+    );
+    return;
+  }
+*/
+
+ void _openExport() {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => const ExportScreen(),
+    ),
+  );
+}
 Future<void> _openEmailSupport() async {
   final uri = Uri(
     scheme: 'mailto',
@@ -688,6 +711,57 @@ Row(
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 12),
+
+_GlassCard(
+  child: Padding(
+    padding: const EdgeInsets.all(14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Funzioni PRO',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 10),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.ios_share_rounded),
+          title: const Text('Esporta dati'),
+          subtitle: Text(
+            widget.state.isProActive
+                ? 'PDF e CSV'
+                : 'Disponibile con QuantoPosso PRO',
+          ),
+          trailing: widget.state.isProActive
+              ? const Icon(Icons.chevron_right)
+              : Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFB300),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'PRO',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+          onTap: _openExport,
+        ),
+      ],
+    ),
+  ),
+),
                 const SizedBox(height: 12),
 
 _GlassCard(

@@ -1,291 +1,637 @@
+import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../app/state.dart';
 import '../../services/iap_service.dart';
 
-class ProScreen extends StatelessWidget {
+class ProScreen extends StatefulWidget {
   final AppState state;
 
   const ProScreen({super.key, required this.state});
 
   @override
+  State<ProScreen> createState() => _ProScreenState();
+}
+
+class _ProScreenState extends State<ProScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+
+    _fade = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    _pulse = Tween<double>(
+      begin: 0.96,
+      end: 1.04,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _controller.forward();
+    _repeatPulse();
+  }
+
+  Future<void> _repeatPulse() async {
+    while (mounted) {
+      await Future.delayed(const Duration(milliseconds: 1400));
+      if (!mounted) return;
+      await _controller.animateTo(1.0);
+      if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (!mounted) return;
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _buyMonthly() async {
+    try {
+      await IapService.instance.buyMonthly();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Acquisto mensile avviato')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Errore acquisto mensile: $e')),
+      );
+    }
+  }
+
+  Future<void> _buyYearly() async {
+    try {
+      await IapService.instance.buyYearly();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Acquisto annuale avviato')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Errore acquisto annuale: $e')),
+      );
+    }
+  }
+
+  Future<void> _restore() async {
+    try {
+      await IapService.instance.restorePurchases();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ripristino acquisti avviato')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Errore ripristino: $e')),
+      );
+    }
+  }
+
+  Future<void> _startTrial() async {
+    await widget.state.activateTrial();
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Prova PRO attivata per 7 giorni'),
+      ),
+    );
+
+    Navigator.pop(context);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final state = widget.state;
 
     final monthly = IapService.instance.monthlyProduct;
     final yearly = IapService.instance.yearlyProduct;
-    double? yearlyMonthlyEquivalent;
-double? yearlySaving;
 
-if (monthly != null && yearly != null) {
-  yearlyMonthlyEquivalent = yearly.rawPrice / 12;
-  yearlySaving = (monthly.rawPrice * 12) - yearly.rawPrice;
-}
+    double? yearlyMonthlyEquivalent;
+    double? yearlySavingPercent;
+    double? yearlySavingAmount;
+
+    if (monthly != null && yearly != null) {
+      yearlyMonthlyEquivalent = yearly.rawPrice / 12;
+      yearlySavingAmount = (monthly.rawPrice * 12) - yearly.rawPrice;
+      final fullYearMonthly = monthly.rawPrice * 12;
+      if (fullYearMonthly > 0) {
+        yearlySavingPercent = (yearlySavingAmount / fullYearMonthly) * 100;
+      }
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-
           const _BlueHeaderBackground(),
-
           SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-              children: [
+            child: FadeTransition(
+              opacity: _fade,
+              child: SlideTransition(
+                position: _slide,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.18),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.workspace_premium,
+                                color: Colors.amber,
+                                size: 18,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'PRO',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Column(
+                        children: [
+                          TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0.96, end: 1.0),
+                            duration: const Duration(milliseconds: 900),
+                            curve: Curves.easeOutBack,
+                            builder: (context, value, child) {
+                              final pulseValue =
+                                  1 + (math.sin(DateTime.now().millisecond / 1000 * 2 * math.pi) * 0.01);
+                              return Transform.scale(
+                                scale: value * pulseValue,
+                                child: child,
+                              );
+                            },
+                            child: Container(
+                              width: 92,
+                              height: 92,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFFFFE082),
+                                    Color(0xFFFFB300),
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    blurRadius: 28,
+                                    spreadRadius: 1,
+                                    color:
+                                        Colors.amber.withValues(alpha: 0.32),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.workspace_premium,
+                                color: Colors.white,
+                                size: 48,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Text(
+                            'QuantoPosso PRO',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.6,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Più controllo, più analisi,\npiù risparmio.',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              fontWeight: FontWeight.w700,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    _GlassCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Cosa sblocchi con PRO',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          const _FeatureRow(
+                            icon: Icons.insights_rounded,
+                            text: 'Statistiche avanzate',
+                          ),
+                          const _FeatureRow(
+                            icon: Icons.stacked_line_chart_rounded,
+                            text: 'Grafici completi',
+                          ),
 
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+                          const _FeatureRow(
+                            icon: Icons.auto_graph_rounded,
+                            text: 'Previsione spese',
+                          ),
+                          const _FeatureRow(
+                            icon: Icons.cloud_done_rounded,
+                            text: 'Backup dati',
+                          ),
+                          const _FeatureRow(
+                            icon: Icons.ios_share_rounded,
+                            text: 'Export dati',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _GlassCard(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF2563EB),
+                                  Color(0xFF7C3AED),
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 8),
+                                  color: const Color(0xFF2563EB)
+                                      .withValues(alpha: 0.22),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed: state.settings.proTrialUsed
+                                  ? null
+                                  : _startTrial,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                disabledBackgroundColor: Colors.transparent,
+                                disabledForegroundColor: Colors.white70,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 18),
+                              ),
+                              icon: const Icon(Icons.bolt_rounded),
+                              label: Text(
+                                state.settings.proTrialUsed
+                                    ? 'Prova gratuita già usata'
+                                    : 'Prova gratis 7 giorni',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 17,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          _PlanCard(
+                            title: 'Mensile',
+                            subtitle: 'Accesso completo a tutte le funzioni PRO',
+                            price: monthly?.price ?? '1,99 €/mese',
+                            buttonText: 'Scegli',
+                            onTap: _buyMonthly,
+                          ),
+                          const SizedBox(height: 14),
+                          _PlanCard(
+                            title: 'Annuale',
+                            subtitle: yearlyMonthlyEquivalent != null
+                                ? '${yearlyMonthlyEquivalent.toStringAsFixed(2)} €/mese'
+                                : 'Miglior rapporto qualità/prezzo',
+                            price: yearly?.price ?? '14,99 €/anno',
+                            buttonText: 'Scegli',
+                            badge: 'PIÙ POPOLARE',
+                            saving: yearlySavingAmount != null
+                                ? yearlySavingPercent != null
+                                    ? 'Risparmi ${yearlySavingAmount.toStringAsFixed(2)}€ • ${yearlySavingPercent.toStringAsFixed(0)}%'
+                                    : 'Risparmi ${yearlySavingAmount.toStringAsFixed(2)}€'
+                                : null,
+                            highlight: true,
+                            onTap: _buyYearly,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextButton(
+                      onPressed: _restore,
+                      child: const Text(
+                        'Ripristina acquisti',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'L’abbonamento si rinnova automaticamente salvo disattivazione dalle impostazioni dello store.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.80),
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeatureRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _FeatureRow({
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFF2563EB).withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: const Color(0xFF2563EB),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 15.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanCard extends StatefulWidget {
+  final String title;
+  final String price;
+  final String? subtitle;
+  final String? badge;
+  final String? saving;
+  final bool highlight;
+  final String buttonText;
+  final VoidCallback onTap;
+
+  const _PlanCard({
+    required this.title,
+    required this.price,
+    required this.onTap,
+    required this.buttonText,
+    this.subtitle,
+    this.badge,
+    this.saving,
+    this.highlight = false,
+  });
+
+  @override
+  State<_PlanCard> createState() => _PlanCardState();
+}
+
+class _PlanCardState extends State<_PlanCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: _pressed ? 0.985 : 1,
+      duration: const Duration(milliseconds: 120),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTapCancel: () => setState(() => _pressed = false),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: widget.highlight
+                ? const Color(0xFFEEF4FF)
+                : Colors.white.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: widget.highlight
+                  ? const Color(0xFF2563EB)
+                  : Colors.grey.shade300,
+              width: widget.highlight ? 2 : 1,
+            ),
+            boxShadow: [
+              if (widget.highlight)
+                BoxShadow(
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  if (widget.badge != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        widget.badge!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              if (widget.subtitle != null) ...[
+                const SizedBox(height: 5),
+                Text(
+                  widget.subtitle!,
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                   ),
                 ),
-
-                const SizedBox(height: 10),
-
-                Center(
-                  child: Column(
-                    children: [
-                      const Icon(
-                        Icons.workspace_premium,
-                        color: Colors.amber,
-                        size: 60,
+              ],
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.price,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
                       ),
-
-                      const SizedBox(height: 10),
-
-                      Text(
-                        "QuantoPosso PRO",
-                        style: theme.textTheme.headlineSmall?.copyWith(
+                    ),
+                  ),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF2563EB),
+                          Color(0xFF7C3AED),
+                        ],
+                      ),
+                    ),
+                    child: ElevatedButton(
+                      onPressed: widget.onTap,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      child: Text(
+                        widget.buttonText,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-
-                      const SizedBox(height: 6),
-
-                      Text(
-                        "Controlla davvero il tuo denaro",
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 30),
-
-                _feature("Statistiche avanzate"),
-                _feature("Grafici completi"),
-                _feature("Previsione spese"),
-                _feature("Backup dati"),
-                _feature("Export dati"),
-
-                const SizedBox(height: 30),
-
-                _GlassCard(
-                  
-                  child:Column(
-  children: [
-
-    SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-        ),
-        onPressed: state.settings.proTrialUsed
-            ? null
-            : () async {
-                await state.activateTrial();
-
-                if (!context.mounted) return;
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Prova PRO attivata per 7 giorni"),
-                  ),
-                );
-
-                Navigator.pop(context);
-              },
-        child: Text(
-          state.settings.proTrialUsed
-              ? "Trial già usato"
-              : "Prova gratis 7 giorni",
-        ),
-      ),
-    ),
-
-    const SizedBox(height: 20),
-
-    _planCard(
-      title: "Mensile",
-      subtitle: "Accesso completo",
-      price: monthly?.price ?? "1,99 €/mese",
-      onTap: () async {
-        await IapService.instance.buyMonthly();
-      },
-    ),
-
-    const SizedBox(height: 12),
-
-    _planCard(
-      title: "Annuale",
-      subtitle: yearlyMonthlyEquivalent != null
-          ? "${yearlyMonthlyEquivalent.toStringAsFixed(2)} €/mese"
-          : "Miglior prezzo",
-      price: yearly?.price ?? "14,99 €/anno",
-      highlight: true,
-      badge: "PIÙ POPOLARE",
-      saving: yearlySaving != null
-          ? "Risparmi ${yearlySaving.toStringAsFixed(2)}€"
-          : null,
-      onTap: () async {
-        await IapService.instance.buyYearly();
-      },
-    ),
-  ],
-),
-                ),
-                const SizedBox(height: 20),
-
-                TextButton(
-                  onPressed: () async {
-                    await IapService.instance.restorePurchases();
-
-                    if (!context.mounted) return;
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Ripristino acquisti avviato"),
-                      ),
-                    );
-                  },
-                  child: const Text("Ripristina acquisti"),
-                )
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _feature(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, color: Colors.green),
-          const SizedBox(width: 10),
-          Text(text),
-        ],
-      ),
-    );
-  }
-
-  Widget _planCard({
-  required String title,
-  required String price,
-  required VoidCallback onTap,
-  String? subtitle,
-  bool highlight = false,
-  String? badge,
-  String? saving,
-}) {
-  return Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: highlight ? Colors.blue : Colors.grey.shade300,
-        width: highlight ? 2 : 1,
-      ),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-
-        Row(
-          children: [
-
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                ],
               ),
-            ),
-
-            if (badge != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  badge,
+              if (widget.saving != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  widget.saving!,
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
                   ),
                 ),
-              )
-          ],
-        ),
-
-        if (subtitle != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(color: Colors.grey),
+              ],
+            ],
           ),
-        ],
-
-        const SizedBox(height: 10),
-
-        Row(
-          children: [
-
-            Text(
-              price,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const Spacer(),
-
-            ElevatedButton(
-              onPressed: onTap,
-              child: const Text("Scegli"),
-            )
-          ],
         ),
-
-        if (saving != null) ...[
-          const SizedBox(height: 6),
-          Text(
-            saving,
-            style: const TextStyle(
-              color: Colors.green,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ]
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
 }
 
 class _BlueHeaderBackground extends StatelessWidget {
@@ -317,18 +663,18 @@ class _BlueHeaderBackground extends StatelessWidget {
 class _WavesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = Colors.white.withOpacity(0.1);
+    final p = Paint()..color = Colors.white.withValues(alpha: 0.10);
 
     final path = Path()
-      ..moveTo(0, size.height * 0.18)
+      ..moveTo(0, size.height * 0.16)
       ..quadraticBezierTo(
-        size.width * 0.3,
+        size.width * 0.28,
         size.height * 0.10,
         size.width * 0.55,
         size.height * 0.18,
       )
       ..quadraticBezierTo(
-        size.width * 0.8,
+        size.width * 0.82,
         size.height * 0.26,
         size.width,
         size.height * 0.20,
@@ -352,14 +698,24 @@ class _GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(22),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.85),
-            borderRadius: BorderRadius.circular(20),
+            color: Colors.white.withValues(alpha: 0.86),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.55),
+            ),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 20,
+                color: Colors.black.withValues(alpha: 0.08),
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: child,
         ),

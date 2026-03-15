@@ -10,6 +10,7 @@ import '../widgets/month_overview_chart.dart';
 import '../../services/salary_cycle.dart';
 import 'package:quantoposso/data/models.dart';
 import 'package:path_provider/path_provider.dart';
+import 'pro_screen.dart';
 
 
 
@@ -482,6 +483,7 @@ _HeroCard(
   },
 ),
 
+
                     const SizedBox(height: 14),
 
                     _SectionHeader(
@@ -527,16 +529,25 @@ _HeroCard(
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Expanded(
-                          child: _PillAction(
-                            label: 'Fissa',
-                            icon: Icons.lock_outline,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)],
-                            ),
-                            onTap: () => _go(3),
-                          ),
-                        ),
+Expanded(
+  child: _PillAction(
+    label: state.isProActive ? 'PRO ATTIVO' : 'PRO',
+    icon: Icons.workspace_premium,
+    gradient: const LinearGradient(
+      colors: [Color(0xFFFFD54F), Color(0xFFFFB300)],
+    ),
+   onTap: () {
+  if (!state.isProActive) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProScreen(state: state),
+      ),
+    );
+  }
+},
+  ),
+),
                       ],
                     ),
 

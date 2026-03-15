@@ -5,6 +5,7 @@ import '../data/repository.dart';
 import '../services/budget_math.dart';
 import '../services/notifications.dart';
 import '../services/salary_cycle.dart';
+import '../services/iap_service.dart';
 
 class AppState extends ChangeNotifier {
   final repo = Repository.instance;
@@ -49,6 +50,8 @@ bool get isProActive {
     settings = repo.settings;
 
     profile = repo.getProfile();
+    
+    await IapService.instance.init(this);
 
     notifyListeners();
   }
@@ -392,4 +395,5 @@ Future<void> revokePro() async {
     variableSpentToday: spentToday,
   );
 }
+
 }
