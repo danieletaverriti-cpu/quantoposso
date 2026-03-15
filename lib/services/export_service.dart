@@ -38,7 +38,7 @@ class ExportService {
 
     final dir = await getApplicationDocumentsDirectory();
     final timestamp = _fileDateFormat.format(DateTime.now());
-    final file = File('${dir.path}/quantoposso_export_$timestamp.csv');
+    final file = File('${dir.path}/resconto_quantoposso$timestamp.csv');
 
     final buffer = StringBuffer();
     buffer.writeln('Data,Tipo,Categoria,Descrizione,Importo');
@@ -120,7 +120,7 @@ class ExportService {
 
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: 'Report PDF Quanto Posso',
+      text: 'Reseoconto PDF Quanto Posso',
       sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
     );
   }
@@ -362,7 +362,7 @@ class ExportService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'Analisi intelligente delle tue spese',
+            'Questo è il pdf Nuovo',
             style: pw.TextStyle(
               color: PdfColors.white,
               fontSize: 18,
