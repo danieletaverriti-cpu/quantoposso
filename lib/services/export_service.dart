@@ -457,13 +457,13 @@ class ExportService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Container(
-            width: 12,
-            height: 12,
-            decoration: pw.BoxDecoration(
-              color: color,
-              shape: pw.BoxShape.circle,
-            ),
-          ),
+  width: 12,
+  height: 12,
+  decoration: pw.BoxDecoration(
+    color: color,
+    borderRadius: pw.BorderRadius.circular(4),
+  ),
+),
           pw.SizedBox(height: 10),
           pw.Text(
             title,
@@ -526,15 +526,15 @@ class ExportService {
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Container(
-                    margin: const pw.EdgeInsets.only(top: 4),
-                    width: 6,
-                    height: 6,
-                    decoration: pw.BoxDecoration(
-                      color: PdfColor.fromHex('#2F80FF'),
-                      shape: pw.BoxShape.circle,
-                    ),
-                  ),
+                 pw.Container(
+  margin: const pw.EdgeInsets.only(top: 4),
+  width: 6,
+  height: 6,
+  decoration: pw.BoxDecoration(
+    color: PdfColor.fromHex('#2F80FF'),
+    borderRadius: pw.BorderRadius.circular(2),
+  ),
+),
                   pw.SizedBox(width: 8),
                   pw.Expanded(
                     child: pw.Text(
@@ -615,13 +615,13 @@ class ExportService {
               child: pw.Row(
                 children: [
                   pw.Container(
-                    width: 12,
-                    height: 12,
-                    decoration: pw.BoxDecoration(
-                      color: PdfColor.fromHex('#2F80FF'),
-                      shape: pw.BoxShape.circle,
-                    ),
-                  ),
+  width: 12,
+  height: 12,
+  decoration: pw.BoxDecoration(
+    color: PdfColor.fromHex('#2F80FF'),
+    borderRadius: pw.BorderRadius.circular(4),
+  ),
+),
                   pw.SizedBox(width: 8),
                   pw.Expanded(
                     child: pw.Text(
@@ -670,13 +670,13 @@ class ExportService {
           pw.Row(
             children: [
               pw.Container(
-                width: 10,
-                height: 10,
-                decoration: pw.BoxDecoration(
-                  color: color,
-                  shape: pw.BoxShape.circle,
-                ),
-              ),
+  width: 10,
+  height: 10,
+  decoration: pw.BoxDecoration(
+    color: color,
+    borderRadius: pw.BorderRadius.circular(3),
+  ),
+),
               pw.SizedBox(width: 8),
               pw.Expanded(
                 child: pw.Text(
@@ -787,16 +787,16 @@ class ExportService {
                   ),
                   child: pw.Row(
                     children: [
-                      pw.Container(
-                        width: 24,
-                        height: 24,
-                        alignment: pw.Alignment.center,
-                        decoration: pw.BoxDecoration(
-                          color: color,
-                          shape: pw.BoxShape.circle,
-                        ),
-                        child: pw.Text(
-                          '$rank',
+                     pw.Container(
+  width: 24,
+  height: 24,
+  alignment: pw.Alignment.center,
+  decoration: pw.BoxDecoration(
+    color: color,
+    borderRadius: pw.BorderRadius.circular(8),
+  ),
+  child: pw.Text(
+    '$rank',
                           style: pw.TextStyle(
                             color: PdfColors.white,
                             fontSize: 10,
