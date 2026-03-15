@@ -14,6 +14,7 @@ import 'package:quantoposso/services/notifications.dart';
 import 'package:quantoposso/services/salary_cycle.dart';
 import 'package:quantoposso/ui/screens/pro_screen.dart';
 import 'package:quantoposso/ui/screens/export_screen.dart';
+import 'package:quantoposso/services/backup_service.dart';
 
 
 class SettingsScreen extends StatefulWidget {
@@ -374,7 +375,7 @@ void _showAppInfo() {
     onPressed: () => Navigator.of(context).maybePop(),
   ),
   title: Text(
-    'Impostazioni',
+    'Menù',
     style: theme.textTheme.titleLarge?.copyWith(
       color: Colors.white,
       fontWeight: FontWeight.w900,
@@ -720,20 +721,24 @@ _GlassCard(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+
         Text(
-          'Funzioni PRO',
+          'Strumenti',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w900,
           ),
         ),
+
         const SizedBox(height: 10),
+
+        // EXPORT
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.ios_share_rounded),
           title: const Text('Esporta dati'),
           subtitle: Text(
             widget.state.isProActive
-                ? 'PDF e CSV'
+                ? 'PDF e CSV premium'
                 : 'Disponibile con QuantoPosso PRO',
           ),
           trailing: widget.state.isProActive
@@ -758,11 +763,39 @@ _GlassCard(
                 ),
           onTap: _openExport,
         ),
+
+        const Divider(),
+
+        // BACKUP
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.cloud_upload_outlined),
+          title: const Text('Crea backup'),
+          subtitle: const Text('Salva tutti i dati dell\'app'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            BackupService.instance.exportBackup(widget.state);
+          },
+        ),
+
+        const Divider(),
+
+        // RIPRISTINO
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.cloud_download_outlined),
+          title: const Text('Ripristina backup'),
+          subtitle: const Text('Importa dati da backup'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            BackupService.instance.importBackup(widget.state);
+          },
+        ),
       ],
     ),
   ),
 ),
-                const SizedBox(height: 12),
+const SizedBox(height: 12),
 
 _GlassCard(
   child: Padding(

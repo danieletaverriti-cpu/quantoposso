@@ -25,6 +25,15 @@ class ExportService {
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
   final DateFormat _fileDateFormat = DateFormat('yyyyMMdd_HHmmss');
 
+  static final List<PdfColor> _chartColors = [
+    PdfColor.fromHex('#2F80FF'),
+    PdfColor.fromHex('#22C55E'),
+    PdfColor.fromHex('#F59E0B'),
+    PdfColor.fromHex('#A855F7'),
+    PdfColor.fromHex('#EF4444'),
+    PdfColor.fromHex('#06B6D4'),
+  ];
+
   Future<void> exportCsv({
     required AppState state,
     DateTime? startDate,
@@ -38,7 +47,7 @@ class ExportService {
 
     final dir = await getApplicationDocumentsDirectory();
     final timestamp = _fileDateFormat.format(DateTime.now());
-    final file = File('${dir.path}/resconto_quantoposso$timestamp.csv');
+    final file = File('${dir.path}/quantoposso_export_premium_$timestamp.csv');
 
     final buffer = StringBuffer();
     buffer.writeln('Data,Tipo,Categoria,Descrizione,Importo');
@@ -79,16 +88,19 @@ class ExportService {
       endDate: endDate,
     );
 
-    final pdf = pw.Document();
-    final logo = await _loadLogoProvider();
+    final pdf = pw.Document(
+      version: PdfVersion.pdf_1_5,
+      compress: true,
+    );
 
+    final logo = await _loadLogoProvider();
     final baseFont = await PdfGoogleFonts.interRegular();
     final boldFont = await PdfGoogleFonts.interBold();
 
     pdf.addPage(
       pw.MultiPage(
         pageTheme: pw.PageTheme(
-          margin: const pw.EdgeInsets.all(24),
+          margin: const pw.EdgeInsets.fromLTRB(24, 24, 24, 24),
           theme: pw.ThemeData.withFont(
             base: baseFont,
             bold: boldFont,
@@ -100,6 +112,8 @@ class ExportService {
           _buildHeroCard(report),
           pw.SizedBox(height: 18),
           _buildSummaryCards(report),
+          pw.SizedBox(height: 18),
+          _buildHighlights(report),
           pw.SizedBox(height: 18),
           _buildInsights(report),
           pw.SizedBox(height: 18),
@@ -114,13 +128,13 @@ class ExportService {
 
     final dir = await getApplicationDocumentsDirectory();
     final timestamp = _fileDateFormat.format(DateTime.now());
-    final file = File('${dir.path}/quantopossov2_report_$timestamp.pdf');
+    final file = File('${dir.path}/quantoposso_super_report_$timestamp.pdf');
 
     await file.writeAsBytes(await pdf.save(), flush: true);
 
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: 'Reseoconto PDF Quanto Posso',
+      text: 'Report PDF Quanto Posso',
       sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
     );
   }
@@ -179,13 +193,10 @@ class ExportService {
     DateTime? startDate,
     DateTime? endDate,
   }) {
-    final incomes = movements
-        .where((m) => m.type == _ExportMovementType.income)
-        .toList();
-
-    final expenses = movements
-        .where((m) => m.type == _ExportMovementType.expense)
-        .toList();
+    final incomes =
+        movements.where((m) => m.type == _ExportMovementType.income).toList();
+    final expenses =
+        movements.where((m) => m.type == _ExportMovementType.expense).toList();
 
     final totalIncome = incomes.fold<double>(0, (sum, m) => sum + m.amount);
     final totalExpense = expenses.fold<double>(0, (sum, m) => sum + m.amount);
@@ -231,6 +242,9 @@ class ExportService {
     final averageExpense =
         expenses.isEmpty ? 0.0 : totalExpense / expenses.length;
 
+    final incomeCount = incomes.length;
+    final expenseCount = expenses.length;
+
     return _ExportReportData(
       generatedAt: DateTime.now(),
       startDate: startDate,
@@ -246,6 +260,8 @@ class ExportService {
       mainCategoryPercent: mainCategoryPercent,
       averageExpense: averageExpense,
       top3Percent: top3Percent,
+      incomeCount: incomeCount,
+      expenseCount: expenseCount,
     );
   }
 
@@ -257,32 +273,31 @@ class ExportService {
       return null;
     }
   }
-
   pw.Widget _buildHeader(_ExportReportData report, pw.ImageProvider? logo) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.center,
       children: [
         if (logo != null)
           pw.Container(
-            width: 44,
-            height: 44,
+            width: 46,
+            height: 46,
             decoration: pw.BoxDecoration(
-              borderRadius: pw.BorderRadius.circular(12),
+              borderRadius: pw.BorderRadius.circular(14),
             ),
             child: pw.ClipRRect(
-              horizontalRadius: 12,
-              verticalRadius: 12,
+              horizontalRadius: 14,
+              verticalRadius: 14,
               child: pw.Image(logo, fit: pw.BoxFit.cover),
             ),
           )
         else
           pw.Container(
-            width: 44,
-            height: 44,
+            width: 46,
+            height: 46,
             alignment: pw.Alignment.center,
             decoration: pw.BoxDecoration(
               color: PdfColor.fromHex('#2F80FF'),
-              borderRadius: pw.BorderRadius.circular(12),
+              borderRadius: pw.BorderRadius.circular(14),
             ),
             child: pw.Text(
               'QP',
@@ -308,7 +323,7 @@ class ExportService {
               ),
               pw.SizedBox(height: 2),
               pw.Text(
-                'Report spese premium',
+                'Report finanziario premium',
                 style: pw.TextStyle(
                   fontSize: 11,
                   color: PdfColor.fromHex('#6B7280'),
@@ -343,26 +358,31 @@ class ExportService {
   }
 
   pw.Widget _buildHeroCard(_ExportReportData report) {
-    final balanceColor =
-        report.balance >= 0 ? PdfColor.fromHex('#22C55E') : PdfColor.fromHex('#EF4444');
+    final balanceColor = report.balance >= 0
+        ? PdfColor.fromHex('#22C55E')
+        : PdfColor.fromHex('#EF4444');
+
+    final balanceLabel = report.balance >= 0 ? 'Saldo positivo' : 'Saldo negativo';
 
     return pw.Container(
       width: double.infinity,
-      padding: const pw.EdgeInsets.all(18),
+      padding: const pw.EdgeInsets.all(20),
       decoration: pw.BoxDecoration(
-        borderRadius: pw.BorderRadius.circular(22),
+        borderRadius: pw.BorderRadius.circular(24),
         gradient: pw.LinearGradient(
           colors: [
-            PdfColor.fromHex('#2F3A4A'),
-            PdfColor.fromHex('#445064'),
+            PdfColor.fromHex('#1F2A44'),
+            PdfColor.fromHex('#394867'),
           ],
+          begin: pw.Alignment.topLeft,
+          end: pw.Alignment.bottomRight,
         ),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'Questo è il pdf Nuovo',
+            'Panoramica del periodo',
             style: pw.TextStyle(
               color: PdfColors.white,
               fontSize: 18,
@@ -371,36 +391,60 @@ class ExportService {
           ),
           pw.SizedBox(height: 8),
           pw.Text(
-            'Questo report evidenzia dove spendi di più, come sono distribuite le uscite e quali categorie pesano maggiormente nel periodo selezionato.',
+            'Una sintesi chiara di entrate, uscite e categorie che incidono di più sul tuo budget.',
             style: pw.TextStyle(
               color: PdfColor.fromHex('#D8E1EE'),
               fontSize: 10.5,
               lineSpacing: 2,
             ),
           ),
-          pw.SizedBox(height: 16),
+          pw.SizedBox(height: 18),
           pw.Container(
-            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: pw.BoxDecoration(
-              color: PdfColor.fromHex('#5A667A'),
-              borderRadius: pw.BorderRadius.circular(14),
+              color: PdfColor.fromHex('#55627A'),
+              borderRadius: pw.BorderRadius.circular(16),
             ),
             child: pw.Row(
               children: [
-                pw.Text(
-                  'Saldo periodo',
-                  style: pw.TextStyle(
-                    color: PdfColors.white,
-                    fontSize: 10.5,
-                  ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      balanceLabel,
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 10.5,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      _currency.format(report.balance),
+                      style: pw.TextStyle(
+                        color: balanceColor,
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
                 pw.Spacer(),
-                pw.Text(
-                  _currency.format(report.balance),
-                  style: pw.TextStyle(
-                    color: balanceColor,
-                    fontSize: 14,
-                    fontWeight: pw.FontWeight.bold,
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#2F80FF'),
+                    borderRadius: pw.BorderRadius.circular(999),
+                  ),
+                  child: pw.Text(
+                    '${report.movements.length} movimenti',
+                    style: pw.TextStyle(
+                      color: PdfColors.white,
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -418,6 +462,7 @@ class ExportService {
           child: _summaryCard(
             title: 'Entrate',
             value: _currency.format(report.totalIncome),
+            subtitle: '${report.incomeCount} movimenti',
             color: PdfColor.fromHex('#22C55E'),
           ),
         ),
@@ -426,6 +471,7 @@ class ExportService {
           child: _summaryCard(
             title: 'Spese',
             value: _currency.format(report.totalExpense),
+            subtitle: '${report.expenseCount} movimenti',
             color: PdfColor.fromHex('#F59E0B'),
           ),
         ),
@@ -434,6 +480,7 @@ class ExportService {
           child: _summaryCard(
             title: 'Saldo',
             value: _currency.format(report.balance),
+            subtitle: report.balance >= 0 ? 'In attivo' : 'In rosso',
             color: PdfColor.fromHex('#2F80FF'),
           ),
         ),
@@ -444,6 +491,7 @@ class ExportService {
   pw.Widget _summaryCard({
     required String title,
     required String value,
+    required String subtitle,
     required PdfColor color,
   }) {
     return pw.Container(
@@ -457,13 +505,13 @@ class ExportService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Container(
-  width: 12,
-  height: 12,
-  decoration: pw.BoxDecoration(
-    color: color,
-    borderRadius: pw.BorderRadius.circular(4),
-  ),
-),
+            width: 12,
+            height: 12,
+            decoration: pw.BoxDecoration(
+              color: color,
+              borderRadius: pw.BorderRadius.circular(4),
+            ),
+          ),
           pw.SizedBox(height: 10),
           pw.Text(
             title,
@@ -481,6 +529,89 @@ class ExportService {
               color: PdfColor.fromHex('#1F2937'),
             ),
           ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            subtitle,
+            style: pw.TextStyle(
+              fontSize: 9.5,
+              color: PdfColor.fromHex('#6B7280'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildHighlights(_ExportReportData report) {
+    return pw.Row(
+      children: [
+        pw.Expanded(
+          child: _highlightCard(
+            label: 'Categoria dominante',
+            value: report.mainCategory?.category ?? 'N/D',
+            accent: PdfColor.fromHex('#2F80FF'),
+          ),
+        ),
+        pw.SizedBox(width: 10),
+        pw.Expanded(
+          child: _highlightCard(
+            label: 'Spesa media',
+            value: _currency.format(report.averageExpense),
+            accent: PdfColor.fromHex('#A855F7'),
+          ),
+        ),
+        pw.SizedBox(width: 10),
+        pw.Expanded(
+          child: _highlightCard(
+            label: 'Top 3 categorie',
+            value: '${report.top3Percent.toStringAsFixed(1)}%',
+            accent: PdfColor.fromHex('#F59E0B'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _highlightCard({
+    required String label,
+    required String value,
+    required PdfColor accent,
+  }) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(14),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromHex('#F9FBFF'),
+        borderRadius: pw.BorderRadius.circular(18),
+        border: pw.Border.all(color: PdfColor.fromHex('#E7ECF5')),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: 24,
+            height: 6,
+            decoration: pw.BoxDecoration(
+              color: accent,
+              borderRadius: pw.BorderRadius.circular(999),
+            ),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: 9.5,
+              color: PdfColor.fromHex('#6B7280'),
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromHex('#1F2937'),
+            ),
+          ),
         ],
       ),
     );
@@ -490,7 +621,7 @@ class ExportService {
     final insights = <String>[
       if (report.mainCategory != null)
         'La categoria con la spesa più alta è ${report.mainCategory!.category}, con ${_currency.format(report.mainCategory!.amount)}, pari al ${report.mainCategoryPercent.toStringAsFixed(1)}% delle uscite.',
-      'Hai registrato ${report.movements.length} movimenti nel periodo selezionato, di cui ${report.expenses.length} uscite e ${report.incomes.length} entrate.',
+      'Hai registrato ${report.movements.length} movimenti nel periodo selezionato, di cui ${report.expenseCount} uscite e ${report.incomeCount} entrate.',
       if (report.expenses.isNotEmpty)
         'La spesa media per movimento è di ${_currency.format(report.averageExpense)}.',
       if (report.expensesByCategory.isNotEmpty)
@@ -526,15 +657,15 @@ class ExportService {
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                 pw.Container(
-  margin: const pw.EdgeInsets.only(top: 4),
-  width: 6,
-  height: 6,
-  decoration: pw.BoxDecoration(
-    color: PdfColor.fromHex('#2F80FF'),
-    borderRadius: pw.BorderRadius.circular(2),
-  ),
-),
+                  pw.Container(
+                    margin: const pw.EdgeInsets.only(top: 4),
+                    width: 6,
+                    height: 6,
+                    decoration: pw.BoxDecoration(
+                      color: PdfColor.fromHex('#2F80FF'),
+                      borderRadius: pw.BorderRadius.circular(2),
+                    ),
+                  ),
                   pw.SizedBox(width: 8),
                   pw.Expanded(
                     child: pw.Text(
@@ -553,13 +684,11 @@ class ExportService {
       ),
     );
   }
-
   pw.Widget _buildCategorySection(_ExportReportData report) {
     final categories = report.expensesByCategory.take(6).toList();
     final total = categories.fold<double>(0, (sum, e) => sum + e.amount);
-    final maxValue = categories.isEmpty
-        ? 1.0
-        : categories.map((e) => e.amount).reduce(math.max);
+    final maxValue =
+        categories.isEmpty ? 1.0 : categories.map((e) => e.amount).reduce(math.max);
 
     return pw.Container(
       width: double.infinity,
@@ -615,13 +744,13 @@ class ExportService {
               child: pw.Row(
                 children: [
                   pw.Container(
-  width: 12,
-  height: 12,
-  decoration: pw.BoxDecoration(
-    color: PdfColor.fromHex('#2F80FF'),
-    borderRadius: pw.BorderRadius.circular(4),
-  ),
-),
+                    width: 12,
+                    height: 12,
+                    decoration: pw.BoxDecoration(
+                      color: PdfColor.fromHex('#2F80FF'),
+                      borderRadius: pw.BorderRadius.circular(4),
+                    ),
+                  ),
                   pw.SizedBox(width: 8),
                   pw.Expanded(
                     child: pw.Text(
@@ -661,7 +790,6 @@ class ExportService {
   }) {
     final widthFactor = maxValue > 0 ? item.amount / maxValue : 0.0;
     final safeWidthFactor = widthFactor.clamp(0.0, 1.0);
-
     final percent = totalValue > 0 ? (item.amount / totalValue) * 100 : 0.0;
 
     return pw.Padding(
@@ -672,13 +800,13 @@ class ExportService {
           pw.Row(
             children: [
               pw.Container(
-  width: 10,
-  height: 10,
-  decoration: pw.BoxDecoration(
-    color: color,
-    borderRadius: pw.BorderRadius.circular(3),
-  ),
-),
+                width: 10,
+                height: 10,
+                decoration: pw.BoxDecoration(
+                  color: color,
+                  borderRadius: pw.BorderRadius.circular(3),
+                ),
+              ),
               pw.SizedBox(width: 8),
               pw.Expanded(
                 child: pw.Text(
@@ -703,25 +831,25 @@ class ExportService {
           pw.SizedBox(height: 4),
           pw.Row(
             children: [
-             pw.Expanded(
-  child: pw.ClipRRect(
-    horizontalRadius: 999,
-    verticalRadius: 999,
-    child: pw.Container(
-      height: 10,
-      color: PdfColor.fromHex('#EEF2F7'),
-      child: pw.Row(
-        children: [
-          pw.Container(
-            width: 280 * safeWidthFactor,
-            height: 10,
-            color: color,
-          ),
-        ],
-      ),
-    ),
-  ),
-),
+              pw.Expanded(
+                child: pw.ClipRRect(
+                  horizontalRadius: 999,
+                  verticalRadius: 999,
+                  child: pw.Container(
+                    height: 10,
+                    color: PdfColor.fromHex('#EEF2F7'),
+                    child: pw.Row(
+                      children: [
+                        pw.Container(
+                          width: 280 * safeWidthFactor,
+                          height: 10,
+                          color: color,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               pw.SizedBox(width: 10),
               pw.SizedBox(
                 width: 42,
@@ -789,16 +917,16 @@ class ExportService {
                   ),
                   child: pw.Row(
                     children: [
-                     pw.Container(
-  width: 24,
-  height: 24,
-  alignment: pw.Alignment.center,
-  decoration: pw.BoxDecoration(
-    color: color,
-    borderRadius: pw.BorderRadius.circular(8),
-  ),
-  child: pw.Text(
-    '$rank',
+                      pw.Container(
+                        width: 24,
+                        height: 24,
+                        alignment: pw.Alignment.center,
+                        decoration: pw.BoxDecoration(
+                          color: color,
+                          borderRadius: pw.BorderRadius.circular(8),
+                        ),
+                        child: pw.Text(
+                          '$rank',
                           style: pw.TextStyle(
                             color: PdfColors.white,
                             fontSize: 10,
@@ -963,8 +1091,7 @@ class ExportService {
           style: pw.TextStyle(
             fontSize: 9.5,
             color: textColor ?? PdfColor.fromHex('#374151'),
-            fontWeight:
-                bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+            fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
           ),
         ),
       ),
@@ -988,15 +1115,6 @@ class ExportService {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
   }
-
-  static final List<PdfColor> _chartColors = [
-    PdfColor.fromHex('#2F80FF'),
-    PdfColor.fromHex('#22C55E'),
-    PdfColor.fromHex('#F59E0B'),
-    PdfColor.fromHex('#A855F7'),
-    PdfColor.fromHex('#EF4444'),
-    PdfColor.fromHex('#06B6D4'),
-  ];
 }
 
 enum _ExportMovementType {
@@ -1059,6 +1177,8 @@ class _ExportReportData {
   final double mainCategoryPercent;
   final double averageExpense;
   final double top3Percent;
+  final int incomeCount;
+  final int expenseCount;
 
   _ExportReportData({
     required this.generatedAt,
@@ -1075,5 +1195,7 @@ class _ExportReportData {
     required this.mainCategoryPercent,
     required this.averageExpense,
     required this.top3Percent,
+    required this.incomeCount,
+    required this.expenseCount,
   });
 }

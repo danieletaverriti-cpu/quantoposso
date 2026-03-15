@@ -114,6 +114,44 @@ Future<void> revokePro() async {
     notifyListeners();
   }
 
+//backup dati
+Future<void> importBackup(Map<String, dynamic> data) async {
+  expenses
+    ..clear()
+    ..addAll(
+      ((data['expenses'] as List?) ?? [])
+          .map((e) => Expense.fromMap(e as Map<dynamic, dynamic>)),
+    );
+
+  incomes
+    ..clear()
+    ..addAll(
+      ((data['incomes'] as List?) ?? [])
+          .map((i) => Income.fromMap(i as Map<dynamic, dynamic>)),
+    );
+
+  fixed
+    ..clear()
+    ..addAll(
+      ((data['fixed'] as List?) ?? [])
+          .map((f) => FixedExpense.fromMap(f as Map<dynamic, dynamic>)),
+    );
+
+  goals
+    ..clear()
+    ..addAll(
+      ((data['goals'] as List?) ?? [])
+          .map((g) => Goal.fromMap(g as Map<dynamic, dynamic>)),
+    );
+
+  final importedSettings = SettingsModel.fromMap(
+    (data['settings'] as Map?)?.cast<dynamic, dynamic>() ?? {},
+  );
+
+  await saveSettings(importedSettings);
+
+  notifyListeners();
+}
 // Expenses
   Future<void> addExpense(Expense e) async {
     await repo.upsertExpense(e);
