@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:math' as math;
-
+import 'dart:ui';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -54,9 +54,10 @@ class ExportService {
     await file.writeAsString(buffer.toString(), flush: true);
 
     await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'Export CSV Quanto Posso',
-    );
+  [XFile(file.path)],
+  text: 'Export CSV Quanto Posso',
+  sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+);
   }
 
   Future<void> exportPdf({
@@ -114,9 +115,10 @@ class ExportService {
     await file.writeAsBytes(await pdf.save(), flush: true);
 
     await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'Report PDF Quanto Posso',
-    );
+  [XFile(file.path)],
+  text: 'Report PDF Quanto Posso',
+  sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+);
   }
 
   Future<List<_ExportMovement>> _loadMovements({
