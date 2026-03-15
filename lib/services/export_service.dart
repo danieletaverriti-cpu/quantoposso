@@ -660,6 +660,8 @@ class ExportService {
     required double totalValue,
   }) {
     final widthFactor = maxValue > 0 ? item.amount / maxValue : 0.0;
+    final safeWidthFactor = widthFactor.clamp(0.0, 1.0);
+
     final percent = totalValue > 0 ? (item.amount / totalValue) * 100 : 0.0;
 
     return pw.Padding(
@@ -701,25 +703,25 @@ class ExportService {
           pw.SizedBox(height: 4),
           pw.Row(
             children: [
-              pw.Expanded(
-                child: pw.Container(
-                  height: 10,
-                  decoration: pw.BoxDecoration(
-                    color: PdfColor.fromHex('#EEF2F7'),
-                    borderRadius: pw.BorderRadius.circular(999),
-                  ),
-                  child: pw.Align(
-                    alignment: pw.Alignment.centerLeft,
-                    child: pw.Container(
-                      width: 280 * widthFactor,
-                      decoration: pw.BoxDecoration(
-                        color: color,
-                        borderRadius: pw.BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+             pw.Expanded(
+  child: pw.ClipRRect(
+    horizontalRadius: 999,
+    verticalRadius: 999,
+    child: pw.Container(
+      height: 10,
+      color: PdfColor.fromHex('#EEF2F7'),
+      child: pw.Row(
+        children: [
+          pw.Container(
+            width: 280 * safeWidthFactor,
+            height: 10,
+            color: color,
+          ),
+        ],
+      ),
+    ),
+  ),
+),
               pw.SizedBox(width: 10),
               pw.SizedBox(
                 width: 42,
