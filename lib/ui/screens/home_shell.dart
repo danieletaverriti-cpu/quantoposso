@@ -7,6 +7,10 @@ import 'fixed_screen.dart' as fix;
 import 'goals_screen.dart' as goal;
 import 'package:quantoposso/ui/screens/settings_screen.dart';
 import 'faq_screen.dart';
+import '../../services/salary_cycle.dart';
+import 'package:quantoposso/ui/screens/pro_screen.dart';
+import 'package:quantoposso/ui/screens/settings_screen.dart' show ToolsScreen;
+
 
 class HomeShell extends StatefulWidget {
   final AppState state;
@@ -62,6 +66,26 @@ Widget _bottomItem({
   }
 
   void _openSettings() {
+    void _openTools() {
+  Navigator.pop(context); // chiude il menu laterale
+
+  if (!widget.state.isProActive) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProScreen(state: widget.state),
+      ),
+    );
+    return;
+  }
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => ToolsScreen(state: widget.state),
+    ),
+  );
+}
     Navigator.pop(context); // chiude drawer
     Navigator.push(
       context,
@@ -80,11 +104,33 @@ Widget _bottomItem({
       ),
     );
   }
+  void _openTools() {
+  Navigator.pop(context); // chiude il drawer
+
+  if (!widget.state.isProActive) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProScreen(state: widget.state),
+      ),
+    );
+    return;
+  }
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => ToolsScreen(state: widget.state),
+    ),
+  );
+}
 
 Widget _drawerTile({
   required IconData icon,
   required String title,
   required VoidCallback onTap,
+  String? subtitle,
+  bool showPro = false,
 }) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 10),
@@ -110,15 +156,53 @@ Widget _drawerTile({
                 child: Icon(icon, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
+
               Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+
+                    if (subtitle != null)
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                  ],
                 ),
               ),
+
+              if (showPro)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFB300),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'PRO',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+
               const Icon(
                 Icons.chevron_right_rounded,
                 color: Colors.grey,
@@ -280,6 +364,15 @@ void openAdd({required int mode}) {
                   _go(1);
                 },
               ),
+             _drawerTile(
+  icon: Icons.build_rounded,
+  title: 'Strumenti',
+  subtitle: widget.state.isProActive
+      ? 'Export • Backup • Ripristino'
+      : 'Disponibile con QuantoPosso PRO',
+  showPro: !widget.state.isProActive,
+  onTap: _openTools,
+),
             ],
           ),
         ),
