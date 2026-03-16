@@ -258,6 +258,22 @@ Future<void> _clearAvatar() async {
     ),
   );
 }
+void _openTools() {
+  if (!widget.state.isProActive) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProScreen(state: widget.state),
+      ),
+    );
+    return;
+  }
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => ToolsScreen(state: widget.state),
+    ),
+  );
+}
 Future<void> _openEmailSupport() async {
   final uri = Uri(
     scheme: 'mailto',
@@ -718,80 +734,52 @@ Row(
 _GlassCard(
   child: Padding(
     padding: const EdgeInsets.all(14),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-
-        Text(
-          'Strumenti',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w900,
+    child: ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF2F80FF), Color(0xFF7B3FF2)],
           ),
+          borderRadius: BorderRadius.circular(16),
         ),
-
-        const SizedBox(height: 10),
-
-        // EXPORT
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.ios_share_rounded),
-          title: const Text('Esporta dati'),
-          subtitle: Text(
-            widget.state.isProActive
-                ? 'PDF e CSV premium'
-                : 'Disponibile con QuantoPosso PRO',
-          ),
-          trailing: widget.state.isProActive
-              ? const Icon(Icons.chevron_right)
-              : Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFB300),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Text(
-                    'PRO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 11,
-                    ),
-                  ),
+        child: const Icon(Icons.build_rounded, color: Colors.white),
+      ),
+      title: const Text(
+        'Strumenti',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      subtitle: Text(
+        widget.state.isProActive
+            ? 'Export, backup e ripristino'
+            : 'Disponibile con QuantoPosso PRO',
+      ),
+      trailing: widget.state.isProActive
+          ? const Icon(Icons.chevron_right)
+          : Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFB300),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Text(
+                'PRO',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
                 ),
-          onTap: _openExport,
-        ),
-
-        const Divider(),
-
-        // BACKUP
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.cloud_upload_outlined),
-          title: const Text('Crea backup'),
-          subtitle: const Text('Salva tutti i dati dell\'app'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {
-            BackupService.instance.exportBackup(widget.state);
-          },
-        ),
-
-        const Divider(),
-
-        // RIPRISTINO
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.cloud_download_outlined),
-          title: const Text('Ripristina backup'),
-          subtitle: const Text('Importa dati da backup'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {
-            BackupService.instance.importBackup(widget.state);
-          },
-        ),
-      ],
+              ),
+            ),
+      onTap: _openTools,
     ),
   ),
 ),
@@ -995,6 +983,7 @@ class _PrivacyPage extends StatelessWidget {
 }
 class _TermsPage extends StatelessWidget {
   const _TermsPage();
+  
 
   @override
   Widget build(BuildContext context) {
@@ -1007,6 +996,60 @@ class _TermsPage extends StatelessWidget {
           'del budget personale.\n\n'
           'L\'app non fornisce consulenza finanziaria.',
         ),
+      ),
+    );
+  }
+}
+class ToolsScreen extends StatelessWidget {
+  final AppState state;
+  const ToolsScreen({super.key, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Strumenti'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.ios_share_rounded),
+            title: const Text('Esporta dati'),
+            subtitle: const Text('PDF e CSV premium'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ExportScreen(state: state),
+                ),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.cloud_upload_outlined),
+            title: const Text('Crea backup'),
+            subtitle: const Text('Salva tutti i dati dell\'app'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              BackupService.instance.exportBackup(state);
+            },
+          ),
+          const Divider(),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.cloud_download_outlined),
+            title: const Text('Ripristina backup'),
+            subtitle: const Text('Importa dati da backup'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              BackupService.instance.importBackup(state);
+            },
+          ),
+        ],
       ),
     );
   }
