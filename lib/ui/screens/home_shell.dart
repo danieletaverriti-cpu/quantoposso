@@ -9,8 +9,8 @@ import 'package:quantoposso/ui/screens/settings_screen.dart';
 import 'faq_screen.dart';
 import '../../services/salary_cycle.dart';
 import 'package:quantoposso/ui/screens/pro_screen.dart';
-import 'package:quantoposso/ui/screens/settings_screen.dart' show ToolsScreen;
-
+import 'package:quantoposso/ui/screens/settings_screen.dart';
+import 'package:quantoposso/ui/screens/statistics_screen.dart';
 
 class HomeShell extends StatefulWidget {
   final AppState state;
@@ -66,34 +66,14 @@ Widget _bottomItem({
   }
 
   void _openSettings() {
-    void _openTools() {
-  Navigator.pop(context); // chiude il menu laterale
-
-  if (!widget.state.isProActive) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ProScreen(state: widget.state),
-      ),
-    );
-    return;
-  }
-
+  Navigator.pop(context); // chiude drawer
   Navigator.push(
     context,
     MaterialPageRoute(
-      builder: (_) => ToolsScreen(state: widget.state),
+      builder: (_) => SettingsScreen(state: widget.state),
     ),
   );
 }
-    Navigator.pop(context); // chiude drawer
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SettingsScreen(state: widget.state),
-      ),
-    );
-  }
 
   void _openFaq() {
     Navigator.pop(context); // chiude drawer
@@ -104,6 +84,7 @@ Widget _bottomItem({
       ),
     );
   }
+
   void _openTools() {
   Navigator.pop(context); // chiude il drawer
 
@@ -117,10 +98,22 @@ Widget _bottomItem({
     return;
   }
 
+
+
   Navigator.push(
     context,
     MaterialPageRoute(
       builder: (_) => ToolsScreen(state: widget.state),
+    ),
+  );
+}
+ void _openStatistics() {
+  Navigator.pop(context); // chiude drawer
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => StatisticsScreen(state: widget.state),
     ),
   );
 }
@@ -372,6 +365,15 @@ void openAdd({required int mode}) {
       : 'Disponibile con QuantoPosso PRO',
   showPro: !widget.state.isProActive,
   onTap: _openTools,
+),
+_drawerTile(
+  icon: Icons.bar_chart_rounded,
+  title: 'Statistiche',
+  subtitle: widget.state.isProActive
+      ? 'Analisi, categorie e insight'
+      : 'Scopri dove vanno i tuoi soldi',
+  showPro: !widget.state.isProActive,
+  onTap: _openStatistics,
 ),
             ],
           ),
