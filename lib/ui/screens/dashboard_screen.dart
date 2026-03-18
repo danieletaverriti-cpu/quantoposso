@@ -582,73 +582,10 @@ Expanded(
 
                     const SizedBox(height: 12),
 
-                    _SectionHeader(
-                      title: 'Settimane',
-                      actionText: 'Scorri ›',
-                      onTap: () {},
-                    ),
-                    const SizedBox(height: 10),
-
-_SectionHeader(
-  title: 'Settimane',
-  actionText: 'Scorri ›',
-  onTap: () {},
+         _WeeklySection(
+  weeklyCards: weeklyCards,
+  euro: euro,
 ),
-const SizedBox(height: 10),
-
-//timeline
-_WeeksTimeline(
-  weeks: weeklyCards,
-),
-
-const SizedBox(height: 8),
-Row(
-  mainAxisAlignment: MainAxisAlignment.center,
-  children: const [
-    _WeekLegendDot(color: Color(0xFF16A34A), label: 'OK'),
-    SizedBox(width: 12),
-    _WeekLegendDot(color: Color(0xFFF59E0B), label: 'Limite'),
-    SizedBox(width: 12),
-    _WeekLegendDot(color: Color(0xFFDC2626), label: 'Sforata'),
-  ],
-),
-
-const SizedBox(height: 10),
-SizedBox(
-  height: 156,
-  child: ListView.separated(
-    scrollDirection: Axis.horizontal,
-    itemCount: weeklyCards.length,
-    separatorBuilder: (_, __) => const SizedBox(width: 10),
-    itemBuilder: (context, index) {
-      return SizedBox(
-        width: 170,
-        child: _WeekBoxCompact(
-          data: weeklyCards[index],
-          euro: euro,
-        ),
-      );
-    },
-  ),
-),
-
-                    SizedBox(
-                      height: 156,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: weeklyCards.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 10),
-                        itemBuilder: (context, index) {
-                          return SizedBox(
-                            width: 170,
-                            child: _WeekBoxCompact(
-                              data: weeklyCards[index],
-                              euro: euro,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
 
                     const SizedBox(height: 12),
 
@@ -1389,6 +1326,142 @@ class _WeeksTimeline extends StatelessWidget {
     );
   }
 }
+class _WeeklySection extends StatefulWidget {
+  final List<_WeekCardData> weeklyCards;
+  final NumberFormat euro;
+
+  const _WeeklySection({
+    required this.weeklyCards,
+    required this.euro,
+  });
+
+  @override
+  State<_WeeklySection> createState() => _WeeklySectionState();
+}
+
+class _WeeklySectionState extends State<_WeeklySection> {
+  late final ScrollController _scrollController;
+  int _lastCurrentWeek = -1;
+
+  static const double _cardWidth = 170;
+  static const double _cardGap = 10;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _jumpToCurrentWeek(animated: false);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _WeeklySection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final newCurrentWeek = widget.weeklyCards.indexWhere((w) => w.isCurrent);
+    if (newCurrentWeek != _lastCurrentWeek) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _jumpToCurrentWeek(animated: true);
+      });
+    }
+  }
+
+  void _jumpToCurrentWeek({required bool animated}) {
+    if (!_scrollController.hasClients) return;
+
+    final currentWeek = widget.weeklyCards.indexWhere((w) => w.isCurrent);
+    if (currentWeek < 0) return;
+
+    _lastCurrentWeek = currentWeek;
+
+    final targetOffset = currentWeek * (_cardWidth + _cardGap);
+    final max = _scrollController.position.maxScrollExtent;
+    final safeOffset = targetOffset.clamp(0.0, max);
+
+    if (animated) {
+      _scrollController.animateTo(
+        safeOffset,
+        duration: const Duration(milliseconds: 550),
+        curve: Curves.easeOutCubic,
+      );
+    } else {
+      _scrollController.jumpTo(safeOffset);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(
+          title: 'Settimane',
+          actionText: 'Scorri ›',
+          onTap: () {},
+        ),
+        const SizedBox(height: 10),
+        _WeeksTimeline(
+          weeks: widget.weeklyCards,
+        ),
+        const SizedBox(height: 8),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _WeekLegendDot(color: Color(0xFF16A34A), label: 'OK'),
+            SizedBox(width: 12),
+            _WeekLegendDot(color: Color(0xFFF59E0B), label: 'Limite'),
+            SizedBox(width: 12),
+            _WeekLegendDot(color: Color(0xFFDC2626), label: 'Sforata'),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 190,
+          child: ListView.separated(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            itemCount: widget.weeklyCards.length,
+            separatorBuilder: (_, __) => const SizedBox(width: _cardGap),
+            itemBuilder: (context, index) {
+              final card = widget.weeklyCards[index];
+
+              return AnimatedSlide(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOut,
+                offset: card.isCurrent ? Offset.zero : const Offset(0, 0.03),
+                child: AnimatedScale(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeOutBack,
+                  scale: card.isCurrent ? 1.0 : 0.96,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: card.isCurrent ? 1.0 : 0.92,
+                    child: SizedBox(
+                      width: _cardWidth,
+                      child: _WeekBoxCompact(
+                        data: card,
+                        euro: widget.euro,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _WeekBoxCompact extends StatelessWidget {
   final _WeekCardData data;
   final NumberFormat euro;
@@ -1458,16 +1531,30 @@ if (data.isFuture)
         ? 0.0
         : (data.spent / data.budget).clamp(0.0, 1.0);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOut,
-      child: _GlassCard(
+   return AnimatedContainer(
+  duration: const Duration(milliseconds: 380),
+  curve: Curves.easeOutCubic,
+  transform: Matrix4.identity()
+    ..translate(0.0, data.isCurrent ? -2.0 : 0.0),
+  child: _GlassCard(
         radius: 18,
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: borderColor, width: 2),
+           border: Border.all(
+  color: borderColor,
+  width: data.isCurrent ? 2.4 : 1.2,
+),
+boxShadow: data.isCurrent
+    ? [
+        BoxShadow(
+          color: const Color(0xFF2563EB).withValues(alpha: 0.18),
+          blurRadius: 16,
+          offset: const Offset(0, 8),
+        ),
+      ]
+    : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
