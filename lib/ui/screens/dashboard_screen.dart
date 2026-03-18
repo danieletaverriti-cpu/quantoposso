@@ -107,6 +107,7 @@ int _currentWeekIndexFromCycle(DateTime now, List<_WeekRange> ranges) {
   final day = DateTime(now.year, now.month, now.day);
 
   for (final r in ranges) {
+    
     if (!day.isBefore(r.start) && !day.isAfter(r.end)) {
       return r.weekIndex;
     }
@@ -308,34 +309,62 @@ final spentToday = state.expenses
 );
 
 final currentWeek = _currentWeekIndexFromCycle(now, ranges);
-        final weekBudget = variableBudget <= 0 ? 0.0 : (variableBudget / 4.0);
 
-        final weeklyCards = <_WeekCardData>[];
-        for (final r in ranges) {
+final weeklyCards = <_WeekCardData>[];
+double carryOver = 0.0;
+
+final dailyBudgetBase =
+    cycleTotalDays <= 0 ? 0.0 : (variableBudget / cycleTotalDays);
+
+for (final r in ranges) {
   final start = DateTime(r.start.year, r.start.month, r.start.day);
   final endExclusive =
       DateTime(r.end.year, r.end.month, r.end.day).add(const Duration(days: 1));
 
- final spentWeek = _spentForWeekBox(
-  startInclusive: start,
-  endExclusive: endExclusive,
-  totalWeekBoxes: ranges.length,
-);
+final isPast = r.weekIndex < currentWeek;
+final isFuture = r.weekIndex > currentWeek;
 
-  final remainingWeek = weekBudget - spentWeek;
+
+  final weekDays = r.end.difference(r.start).inDays + 1;
+  final baseWeekBudget = dailyBudgetBase * weekDays;
+
+  final spentWeek = _spentForWeekBox(
+    startInclusive: start,
+    endExclusive: endExclusive,
+    totalWeekBoxes: ranges.length,
+  );
+
+  final dynamicBudget = baseWeekBudget + carryOver;
+  final remainingWeek = dynamicBudget - spentWeek;
+
+  String statusText;
+  if (remainingWeek < 0) {
+    statusText = 'Sforata';
+  } else if (carryOver > 0 && r.weekIndex > 0) {
+    statusText = 'Hai recuperato';
+  } else if (remainingWeek > dynamicBudget * 0.25) {
+    statusText = 'Ottimo margine';
+  } else {
+    statusText = 'In linea';
+  }
+
+  carryOver = remainingWeek;
 
   weeklyCards.add(
     _WeekCardData(
       label: 'Sett. ${r.weekIndex + 1}',
       rangeText: _rangeLabel(r.start, r.end),
-      budget: weekBudget,
+      budget: dynamicBudget,
       spent: spentWeek,
       remaining: remainingWeek,
+      carryOver: r.weekIndex == 0 ? 0.0 : (dynamicBudget - baseWeekBudget),
+      statusText: statusText,
       isCurrent: r.weekIndex == currentWeek,
+      isFuture: isFuture,
+      isPast: isPast,
     ),
   );
 }
-
         final recent = <_MoveRow>[];
         for (final e in state.expenses) {
           recent.add(
@@ -560,6 +589,49 @@ Expanded(
                     ),
                     const SizedBox(height: 10),
 
+_SectionHeader(
+  title: 'Settimane',
+  actionText: 'Scorri ›',
+  onTap: () {},
+),
+const SizedBox(height: 10),
+
+//timeline
+_WeeksTimeline(
+  weeks: weeklyCards,
+),
+
+const SizedBox(height: 8),
+Row(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: const [
+    _WeekLegendDot(color: Color(0xFF16A34A), label: 'OK'),
+    SizedBox(width: 12),
+    _WeekLegendDot(color: Color(0xFFF59E0B), label: 'Limite'),
+    SizedBox(width: 12),
+    _WeekLegendDot(color: Color(0xFFDC2626), label: 'Sforata'),
+  ],
+),
+
+const SizedBox(height: 10),
+SizedBox(
+  height: 156,
+  child: ListView.separated(
+    scrollDirection: Axis.horizontal,
+    itemCount: weeklyCards.length,
+    separatorBuilder: (_, __) => const SizedBox(width: 10),
+    itemBuilder: (context, index) {
+      return SizedBox(
+        width: 170,
+        child: _WeekBoxCompact(
+          data: weeklyCards[index],
+          euro: euro,
+        ),
+      );
+    },
+  ),
+),
+
                     SizedBox(
                       height: 156,
                       child: ListView.separated(
@@ -684,6 +756,41 @@ Expanded(
           );
         
  }
+}
+
+class _WeekLegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _WeekLegendDot({
+    required this.color,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _BlueHeaderBackground extends StatelessWidget {
@@ -1157,6 +1264,131 @@ class _MoveRow {
   });
 }
 
+class _WeeksTimeline extends StatelessWidget {
+  final List<_WeekCardData> weeks;
+
+  const _WeeksTimeline({
+    required this.weeks,
+  });
+
+  Color _colorForWeek(_WeekCardData w) {
+    if (w.remaining < 0) return const Color(0xFFDC2626);
+    if (w.remaining <= (w.budget * 0.12)) return const Color(0xFFF59E0B);
+    return const Color(0xFF16A34A);
+  }
+
+  IconData _iconForWeek(_WeekCardData w) {
+    if (w.remaining < 0) return Icons.close_rounded;
+    if (w.remaining <= (w.budget * 0.12)) return Icons.priority_high_rounded;
+    return Icons.check_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(weeks.length, (index) {
+        final w = weeks[index];
+        final color = _colorForWeek(w);
+        final icon = _iconForWeek(w);
+
+        return Expanded(
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOut,
+                      width: w.isCurrent ? 34 : 28,
+                      height: w.isCurrent ? 34 : 28,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: color,
+                          width: w.isCurrent ? 3 : 2,
+                        ),
+                        boxShadow: w.isCurrent
+                            ? [
+                                BoxShadow(
+                                  color: color.withValues(alpha: 0.28),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            icon,
+                            color: color,
+                            size: w.isCurrent ? 18 : 16,
+                          ),
+                          if (w.isCurrent)
+                            Positioned(
+                              top: 3,
+                              right: 3,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2563EB),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF2563EB)
+                                          .withValues(alpha: 0.30),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'S${index + 1}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight:
+                            w.isCurrent ? FontWeight.w900 : FontWeight.w700,
+                        color: w.isCurrent
+                            ? const Color(0xFF1D4ED8)
+                            : const Color(0xFF6B7280),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (index != weeks.length - 1)
+                Expanded(
+                  child: Container(
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      gradient: LinearGradient(
+                        colors: [
+                          color.withValues(alpha: 0.75),
+                          _colorForWeek(weeks[index + 1]).withValues(alpha: 0.35),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+}
 class _WeekBoxCompact extends StatelessWidget {
   final _WeekCardData data;
   final NumberFormat euro;
@@ -1171,106 +1403,267 @@ class _WeekBoxCompact extends StatelessWidget {
     final theme = Theme.of(context);
 
     final isOver = data.remaining < 0;
-    final color =
-        isOver ? Colors.red : (data.remaining <= 10 ? Colors.orange : Colors.green);
+    final isLow = !isOver && data.remaining <= (data.budget * 0.12);
+    final isGreat = data.remaining > (data.budget * 0.25);
+if (data.isFuture) {
+  return _GlassCard(
+    radius: 18,
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(data.label),
+          Text(data.rangeText),
+          if (data.isFuture)
+  const SizedBox(height: 4),
 
-    return _GlassCard(
-      radius: 18,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: data.isCurrent
-              ? Border.all(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.45),
-                  width: 2,
-                )
-              : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    data.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                if (data.isCurrent)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Text(
-                      'Ora',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF2563EB),
+if (data.isFuture)
+  const Text(
+    'Settimana prevista',
+    style: TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.w800,
+      color: Color(0xFF2563EB),
+    ),
+  ),
+          const SizedBox(height: 8),
+          Text(
+            euro.format(data.budget),
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF2563EB),
+            ),
+          ),
+          const Text(
+            'Budget previsto',
+            style: TextStyle(fontSize: 11),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+    final mainColor = isOver
+        ? const Color(0xFFDC2626)
+        : isLow
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF16A34A);
+
+    final borderColor = data.isCurrent
+        ? const Color(0xFF2563EB).withValues(alpha: 0.45)
+        : Colors.transparent;
+
+    final progressValue = data.budget <= 0
+        ? 0.0
+        : (data.spent / data.budget).clamp(0.0, 1.0);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+      child: _GlassCard(
+        radius: 18,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: borderColor, width: 2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      data.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
+                  if (data.isCurrent)
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'Ora',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                data.rangeText,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: mainColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  data.statusText,
+                  style: TextStyle(
+                    color: mainColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: Text(
+                  euro.format(data.remaining),
+                  key: ValueKey(data.remaining.toStringAsFixed(2)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: mainColor,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 6),
+              if (data.isFuture)
+  Text(
+    'Budget ${euro.format(data.budget)}',
+    style: theme.textTheme.bodySmall?.copyWith(
+      color: const Color(0xFF2563EB),
+      fontWeight: FontWeight.w800,
+    ),
+  )
+else
+  Text(
+    'Speso ${euro.format(data.spent)}',
+    style: theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      fontWeight: FontWeight.w700,
+    ),
+  ),
+
+              const SizedBox(height: 4),
+              Text(
+                'Budget ${euro.format(data.budget)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+
+              if (data.carryOver != 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  data.carryOver > 0
+                      ? 'Trascinati +${euro.format(data.carryOver)}'
+                      : 'Trascinati ${euro.format(data.carryOver)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: data.carryOver > 0
+                        ? const Color(0xFF16A34A)
+                        : const Color(0xFFDC2626),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              data.rangeText,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
+
+              const Spacer(),
+
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: progressValue),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeOut,
+                  builder: (context, value, _) {
+                    return LinearProgressIndicator(
+                      value: value,
+                      minHeight: 7,
+                      backgroundColor: Colors.black.withValues(alpha: 0.06),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isOver
+                            ? const Color(0xFFDC2626)
+                            : isLow
+                                ? const Color(0xFFF59E0B)
+                                : const Color(0xFF2563EB),
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              euro.format(data.remaining),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Speso ${euro.format(data.spent)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: data.budget <= 0 ? 0 : (data.spent / data.budget).clamp(0, 1),
-                minHeight: 7,
-                backgroundColor: Colors.black.withValues(alpha: 0.06),
-              ),
-            ),
-          ],
+
+              const SizedBox(height: 6),
+
+              if (isGreat)
+                const Text(
+                  'Stai gestendo bene la settimana',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF16A34A),
+                  ),
+                )
+              else if (isOver)
+                const Text(
+                  'La prossima settimana parte più bassa',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFDC2626),
+                  ),
+                )
+              else if (isLow)
+                const Text(
+                  'Margine basso, attenzione',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFF59E0B),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
-
 class _WeekCardData {
   final String label;
   final String rangeText;
   final double budget;
   final double spent;
   final double remaining;
+  final double carryOver;
+  final String statusText;
   final bool isCurrent;
+  final bool isFuture;
+  final bool isPast;
 
   const _WeekCardData({
     required this.label,
@@ -1278,7 +1671,11 @@ class _WeekCardData {
     required this.budget,
     required this.spent,
     required this.remaining,
+    required this.carryOver,
+    required this.statusText,
     required this.isCurrent,
+    required this.isFuture,
+    required this.isPast,
   });
 }
 
