@@ -55,33 +55,48 @@ Future<void> _pickAvatar() async {
     await avatarDir.create(recursive: true);
   }
 
-  final savedFile = File('${avatarDir.path}/avatar.jpg');
+  final oldPath = widget.state.settings.profileAvatarPath;
+
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  final savedFile = File('${avatarDir.path}/avatar_$timestamp.jpg');
+
   await File(xfile.path).copy(savedFile.path);
 
-  final s = widget.state.settings;
-  final updated = s.copyWith(profileAvatarPath: savedFile.path);
+  final updated = widget.state.settings.copyWith(
+    profileAvatarPath: savedFile.path,
+  );
+
   await widget.state.saveSettings(updated);
+  await widget.state.refresh();
+
+  if (oldPath != null && oldPath.isNotEmpty && oldPath != savedFile.path) {
+    final oldFile = File(oldPath);
+    if (await oldFile.exists()) {
+      await oldFile.delete();
+    }
+  }
 
   if (!mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(content: Text('Foto profilo aggiornata ✅')),
   );
 }
-
 Future<void> _clearAvatar() async {
-  final s = widget.state.settings;
+  final oldPath = widget.state.settings.profileAvatarPath;
 
-  // Se esiste un file salvato lo eliminiamo
-  if (s.profileAvatarPath != null && s.profileAvatarPath!.isNotEmpty) {
-    final file = File(s.profileAvatarPath!);
+  if (oldPath != null && oldPath.isNotEmpty) {
+    final file = File(oldPath);
     if (await file.exists()) {
       await file.delete();
     }
   }
 
-  // Puliamo il path salvato nelle impostazioni
-  final updated = s.copyWith(clearProfileAvatarPath: true);
+  final updated = widget.state.settings.copyWith(
+    clearProfileAvatarPath: true,
+  );
+
   await widget.state.saveSettings(updated);
+  await widget.state.refresh();
 
   if (!mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
@@ -380,6 +395,10 @@ void _showAppInfo() {
         final theme = Theme.of(context);
         final s = widget.state.settings;
         final euro = NumberFormat.currency(locale: 'it_IT', symbol: '€');
+        final avatarPath = s.profileAvatarPath;
+final hasAvatar = avatarPath != null &&
+    avatarPath.isNotEmpty &&
+    File(avatarPath).existsSync();
 
         return Scaffold(
           appBar: AppBar(
@@ -427,15 +446,13 @@ _GlassCard(
         GestureDetector(
           onTap: _pickAvatar,
           child: CircleAvatar(
-            radius: 26,
-            backgroundColor: Colors.white,
-            backgroundImage: (s.profileAvatarPath == null || s.profileAvatarPath!.isEmpty)
-                ? null
-                : FileImage(File(s.profileAvatarPath!)),
-            child: (s.profileAvatarPath == null || s.profileAvatarPath!.isEmpty)
-                ? const Icon(Icons.person, color: Color(0xFF1E40AF))
-                : null,
-          ),
+  radius: 26,
+  backgroundColor: Colors.white,
+  backgroundImage: hasAvatar ? FileImage(File(avatarPath)) : null,
+  child: !hasAvatar
+      ? const Icon(Icons.person, color: Color(0xFF1E40AF))
+      : null,
+),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -453,7 +470,7 @@ _GlassCard(
         ),
         IconButton(
           tooltip: 'Rimuovi foto',
-          onPressed: (s.profileAvatarPath == null || s.profileAvatarPath!.isEmpty) ? null : _clearAvatar,
+          onPressed: hasAvatar ? _clearAvatar : null,
           icon: const Icon(Icons.delete_outline),
         ),
       ],
@@ -731,59 +748,7 @@ Row(
 
                   const SizedBox(height: 12),
 
-_GlassCard(
-  child: Padding(
-    padding: const EdgeInsets.all(14),
-    child: ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2F80FF), Color(0xFF7B3FF2)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(Icons.build_rounded, color: Colors.white),
-      ),
-      title: const Text(
-        'Strumenti',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      subtitle: Text(
-        widget.state.isProActive
-            ? 'Export, backup e ripristino'
-            : 'Disponibile con QuantoPosso PRO',
-      ),
-      trailing: widget.state.isProActive
-          ? const Icon(Icons.chevron_right)
-          : Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFB300),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Text(
-                'PRO',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 11,
-                ),
-              ),
-            ),
-      onTap: _openTools,
-    ),
-  ),
-),
-const SizedBox(height: 12),
+
 
 _GlassCard(
   child: Padding(
@@ -1000,54 +965,381 @@ class _TermsPage extends StatelessWidget {
     );
   }
 }
-class ToolsScreen extends StatelessWidget {
+class ToolsScreen extends StatefulWidget {
   final AppState state;
   const ToolsScreen({super.key, required this.state});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Strumenti'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.ios_share_rounded),
-            title: const Text('Esporta dati'),
-            subtitle: const Text('PDF e CSV premium'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ExportScreen(state: state),
+  State<ToolsScreen> createState() => _ToolsScreenState();
+}
+
+class _ToolsScreenState extends State<ToolsScreen> {
+
+  Future<void> _showBusyDialog({
+    required String text,
+  }) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.6),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  text,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-              );
-            },
+              ),
+            ],
           ),
-          const Divider(),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.cloud_upload_outlined),
-            title: const Text('Crea backup'),
-            subtitle: const Text('Salva tutti i dati dell\'app'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              BackupService.instance.exportBackup(state);
-            },
+        ),
+      ),
+    );
+  }
+
+  void _showDoneSnack(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _confirmRestore() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          'Ripristinare backup?',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: const Text(
+          'Il ripristino sostituirà tutti i dati attuali con quelli del backup.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annulla'),
           ),
-          const Divider(),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.cloud_download_outlined),
-            title: const Text('Ripristina backup'),
-            subtitle: const Text('Importa dati da backup'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              BackupService.instance.importBackup(state);
-            },
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Continua'),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          const _BlueHeaderBackground(),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Strumenti',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFB300),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          'PRO',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    children: [
+
+                      const SizedBox(height: 8),
+
+                      _GlassCard(
+                        child: Column(
+                          children: [
+                            _ToolTile(
+                              icon: Icons.ios_share_rounded,
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF2563EB),
+                                  Color(0xFF7C3AED),
+                                ],
+                              ),
+                              title: 'Esporta dati',
+                              subtitle: 'PDF e CSV premium',
+                              badge: 'PDF',
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ExportScreen(state: widget.state),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            const Divider(height: 1),
+
+                            _ToolTile(
+                              icon: Icons.cloud_upload_rounded,
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF22C55E),
+                                  Color(0xFF16A34A),
+                                ],
+                              ),
+                              title: 'Crea backup',
+                              subtitle: 'Salva tutti i dati dell\'app',
+                              badge: 'Backup',
+                              onTap: () async {
+                                await _showBusyDialog(
+                                  text: 'Sto creando il backup...',
+                                );
+
+                                try {
+                                  await BackupService.instance.exportBackup(widget.state);
+
+                                  if (mounted) Navigator.of(context).pop();
+
+                                  _showDoneSnack('Backup creato con successo ✅');
+                                } catch (_) {
+                                  if (mounted) Navigator.of(context).pop();
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Errore durante il backup'),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+
+                            const Divider(height: 1),
+
+                            _ToolTile(
+                              icon: Icons.cloud_download_rounded,
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFFF59E0B),
+                                  Color(0xFFF97316),
+                                ],
+                              ),
+                              title: 'Ripristina backup',
+                              subtitle: 'Importa dati da backup',
+                              badge: 'Restore',
+                              onTap: () async {
+                                final ok = await _confirmRestore();
+                                if (!ok) return;
+
+                                await _showBusyDialog(
+                                  text: 'Sto ripristinando il backup...',
+                                );
+
+                                try {
+                                  await BackupService.instance.importBackup(widget.state);
+
+                                  if (mounted) Navigator.of(context).pop();
+
+                                  _showDoneSnack('Backup ripristinato ✅');
+                                } catch (_) {
+                                  if (mounted) Navigator.of(context).pop();
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Errore durante il ripristino'),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      _GlassCard(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFB300)
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.workspace_premium_rounded,
+                                  color: Color(0xFFFFB300),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'I backup proteggono spese, entrate e obiettivi.',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+class _ToolTile extends StatelessWidget {
+  final IconData icon;
+  final Gradient gradient;
+  final String title;
+  final String subtitle;
+  final String badge;
+  final VoidCallback onTap;
+
+  const _ToolTile({
+    required this.icon,
+    required this.gradient,
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      onTap: onTap,
+      leading: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Icon(icon, color: Colors.white),
+      ),
+      title: Text(
+        title,
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          subtitle,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              badge,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF6B7280),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.grey,
           ),
         ],
       ),

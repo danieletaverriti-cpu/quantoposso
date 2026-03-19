@@ -55,21 +55,27 @@ Future<void> _pickAvatar() async {
     await avatarDir.create(recursive: true);
   }
 
-  final savedFile = File('${avatarDir.path}/avatar.jpg');
+  final oldPath = state.settings.profileAvatarPath;
 
-  if (await savedFile.exists()) {
-    await savedFile.delete();
-  }
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  final savedFile = File('${avatarDir.path}/avatar_$timestamp.jpg');
 
   await File(xfile.path).copy(savedFile.path);
 
-  final s = state.settings;
-  final updated = s.copyWith(profileAvatarPath: savedFile.path);
+  final updated = state.settings.copyWith(
+    profileAvatarPath: savedFile.path,
+  );
 
   await state.saveSettings(updated);
+  await state.refresh();
+
+  if (oldPath != null && oldPath.isNotEmpty && oldPath != savedFile.path) {
+    final oldFile = File(oldPath);
+    if (await oldFile.exists()) {
+      await oldFile.delete();
+    }
+  }
 }
-
-
   
 
     List<_WeekRange> _fourWeekRangesFromCycle({
@@ -151,7 +157,10 @@ double _spentForWeekBox({
         final theme = Theme.of(context);
         final euro = NumberFormat.currency(locale: 'it_IT', symbol: '€');
         final profileName = (state.profile?.name ?? '').trim();
-
+        final avatarPath = state.settings.profileAvatarPath;
+final hasAvatar = avatarPath != null &&
+    avatarPath.isNotEmpty &&
+    File(avatarPath).existsSync();
         final now = DateTime.now();
 
 final cycle = SalaryCycleService.estimateCycle(
@@ -420,27 +429,20 @@ final isFuture = r.weekIndex > currentWeek;
                             tooltip: 'Profilo',
                             onPressed: _pickAvatar,
                             icon: CircleAvatar(
-                              radius: 18,
-                              backgroundColor: Colors.white,
-                              backgroundImage:
-                                  (state.settings.profileAvatarPath == null ||
-                                          state.settings.profileAvatarPath!.isEmpty)
-                                      ? null
-                                      : FileImage(File(state.settings.profileAvatarPath!)),
-                              child: (state.settings.profileAvatarPath == null ||
-                                      state.settings.profileAvatarPath!.isEmpty)
-                                  ? Text(
-                                      profileName.isEmpty
-                                          ? '?'
-                                          : profileName[0].toUpperCase(),
-                                      style: const TextStyle(
-                                        color: Color(0xFF1E40AF),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    )
-                                  : null,
-                            ),
+  radius: 18,
+  backgroundColor: Colors.white,
+  backgroundImage: hasAvatar ? FileImage(File(avatarPath)) : null,
+  child: !hasAvatar
+      ? Text(
+          profileName.isEmpty ? '?' : profileName[0].toUpperCase(),
+          style: const TextStyle(
+            color: Color(0xFF1E40AF),
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        )
+      : null,
+),
                           ),
                         ),
                       ],
