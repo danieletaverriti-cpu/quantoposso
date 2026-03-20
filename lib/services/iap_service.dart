@@ -12,7 +12,6 @@ class IapService {
   final InAppPurchase _iap = InAppPurchase.instance;
 
   StreamSubscription<List<PurchaseDetails>>? _subscription;
-
   List<ProductDetails> _products = [];
 
   ProductDetails? get monthlyProduct {
@@ -32,27 +31,60 @@ class IapService {
   }
 
   Future<void> init(AppState state) async {
+    await _subscription?.cancel();
+
     final available = await _iap.isAvailable();
     if (!available) return;
 
-    final response = await _iap.queryProductDetails(
-      {monthlyId, yearlyId},
-    );
+    final response = await _iap.queryProductDetails({
+      monthlyId,
+      yearlyId,
+    });
 
     _products = response.productDetails;
 
     _subscription = _iap.purchaseStream.listen(
-      (purchases) {
+      (purchases) async {
         for (final purchase in purchases) {
-          if (purchase.status == PurchaseStatus.purchased) {
-            _handlePurchase(purchase, state);
-          }
+          await _handlePurchaseUpdate(purchase, state);
         }
       },
+      onError: (_) {},
     );
   }
 
-  Future<void> _handlePurchase(
+  Future<void> _handlePurchaseUpdate(
+    PurchaseDetails purchase,
+    AppState state,
+  ) async {
+    switch (purchase.status) {
+      case PurchaseStatus.pending:
+        return;
+
+      case PurchaseStatus.error:
+        if (purchase.pendingCompletePurchase) {
+          await _iap.completePurchase(purchase);
+        }
+        return;
+
+      case PurchaseStatus.canceled:
+        if (purchase.pendingCompletePurchase) {
+          await _iap.completePurchase(purchase);
+        }
+        return;
+
+      case PurchaseStatus.purchased:
+      case PurchaseStatus.restored:
+        await _unlockFromPurchase(purchase, state);
+
+        if (purchase.pendingCompletePurchase) {
+          await _iap.completePurchase(purchase);
+        }
+        return;
+    }
+  }
+
+  Future<void> _unlockFromPurchase(
     PurchaseDetails purchase,
     AppState state,
   ) async {
@@ -60,20 +92,18 @@ class IapService {
 
     if (purchase.productID == monthlyId) {
       await state.unlockPro(
-        plan: "monthly",
+        plan: 'monthly',
         expiry: now.add(const Duration(days: 30)),
       );
+      return;
     }
 
     if (purchase.productID == yearlyId) {
       await state.unlockPro(
-        plan: "yearly",
+        plan: 'yearly',
         expiry: now.add(const Duration(days: 365)),
       );
-    }
-
-    if (purchase.pendingCompletePurchase) {
-      await _iap.completePurchase(purchase);
+      return;
     }
   }
 
@@ -82,10 +112,7 @@ class IapService {
     if (product == null) return;
 
     final purchaseParam = PurchaseParam(productDetails: product);
-
-    await _iap.buyNonConsumable(
-      purchaseParam: purchaseParam,
-    );
+    await _iap.buyNonConsumable(purchaseParam: purchaseParam);
   }
 
   Future<void> buyYearly() async {
@@ -93,13 +120,15 @@ class IapService {
     if (product == null) return;
 
     final purchaseParam = PurchaseParam(productDetails: product);
-
-    await _iap.buyNonConsumable(
-      purchaseParam: purchaseParam,
-    );
+    await _iap.buyNonConsumable(purchaseParam: purchaseParam);
   }
 
   Future<void> restorePurchases() async {
     await _iap.restorePurchases();
+  }
+
+  Future<void> dispose() async {
+    await _subscription?.cancel();
+    _subscription = null;
   }
 }
