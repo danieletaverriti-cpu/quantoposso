@@ -278,95 +278,144 @@ class _ProScreenState extends State<ProScreen>
                     ),
                     const SizedBox(height: 22),
                     _GlassCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Cosa sblocchi con PRO',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          const _FeatureRow(
-                            icon: Icons.insights_rounded,
-                            text: 'Statistiche avanzate',
-                          ),
-                          const _FeatureRow(
-                            icon: Icons.stacked_line_chart_rounded,
-                            text: 'Grafici completi',
-                          ),
-
-                          const _FeatureRow(
-                            icon: Icons.auto_graph_rounded,
-                            text: 'Previsione spese',
-                          ),
-                          const _FeatureRow(
-                            icon: Icons.cloud_done_rounded,
-                            text: 'Backup dati',
-                          ),
-                          const _FeatureRow(
-                            icon: Icons.ios_share_rounded,
-                            text: 'Export dati',
-                          ),
-                        ],
-                      ),
-                    ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Cosa sblocchi con PRO',
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      const SizedBox(height: 14),
+      const _FeatureRow(
+        icon: Icons.insights_rounded,
+        text: 'Statistiche avanzate',
+      ),
+      const _FeatureRow(
+        icon: Icons.stacked_line_chart_rounded,
+        text: 'Grafici completi',
+      ),
+      const _FeatureRow(
+        icon: Icons.auto_graph_rounded,
+        text: 'Previsione spese',
+      ),
+      const _FeatureRow(
+        icon: Icons.cloud_done_rounded,
+        text: 'Backup automatico dei dati',
+      ),
+      const _FeatureRow(
+        icon: Icons.restore_rounded,
+        text: 'Ripristino rapido del backup',
+      ),
+      const _FeatureRow(
+        icon: Icons.ios_share_rounded,
+        text: 'Export dati PDF e CSV',
+      ),
+      const SizedBox(height: 10),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFB300).withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.workspace_premium_rounded,
+              color: Color(0xFFFFB300),
+              size: 20,
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Con PRO i tuoi dati restano protetti con backup automatico e ripristino semplice quando ne hai bisogno.',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  ),
+),
                     const SizedBox(height: 16),
                     _GlassCard(
                       child: Column(
                         children: [
                           Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF2563EB),
-                                  Color(0xFF7C3AED),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 8),
-                                  color: const Color(0xFF2563EB)
-                                      .withValues(alpha: 0.22),
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton.icon(
-                              onPressed: state.settings.proTrialUsed
-                                  ? null
-                                  : _startTrial,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                disabledBackgroundColor: Colors.transparent,
-                                disabledForegroundColor: Colors.white70,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 18),
-                              ),
-                              icon: const Icon(Icons.bolt_rounded),
-                              label: Text(
-                                state.settings.proTrialUsed
-                                    ? 'Prova gratuita già usata'
-                                    : 'Prova gratis 7 giorni',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 17,
-                                ),
-                              ),
-                            ),
-                          ),
+  width: double.infinity,
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(18),
+    gradient: LinearGradient(
+      colors: state.settings.proTrialUsed
+          ? [
+              const Color(0xFF94A3B8),
+              const Color(0xFF64748B),
+            ]
+          : [
+              const Color(0xFF2563EB),
+              const Color(0xFF7C3AED),
+            ],
+    ),
+    boxShadow: [
+      BoxShadow(
+        blurRadius: 18,
+        offset: const Offset(0, 8),
+        color: const Color(0xFF2563EB).withValues(alpha: 0.22),
+      ),
+    ],
+  ),
+  child: ElevatedButton.icon(
+    onPressed: state.settings.proTrialUsed ? null : _startTrial,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.transparent,
+      shadowColor: Colors.transparent,
+      disabledBackgroundColor: Colors.transparent,
+      disabledForegroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 18),
+    ),
+    icon: Icon(
+      Icons.bolt_rounded,
+      color: Colors.white.withValues(alpha: state.settings.proTrialUsed ? 0.85 : 1),
+    ),
+    label: Text(
+      state.settings.proTrialUsed
+          ? 'Prova già utilizzata'
+          : 'Prova PRO gratis per 7 giorni',
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: state.settings.proTrialUsed ? 0.85 : 1),
+        fontWeight: FontWeight.w900,
+        fontSize: 17,
+      ),
+    ),
+  ),
+),
+const SizedBox(height: 8),
+Text(
+  state.settings.proTrialUsed
+      ? 'Puoi comunque scegliere un piano PRO qui sotto'
+      : 'Annulla quando vuoi',
+  textAlign: TextAlign.center,
+  style: TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    color: Colors.white.withValues(alpha: 0.80),
+  ),
+),
                           const SizedBox(height: 18),
                           _PlanCard(
                             title: 'Mensile',
                             subtitle: 'Accesso completo a tutte le funzioni PRO',
-                            price: monthly?.price ?? '1,99 €/mese',
+                            price: monthly?.price ?? '2,99 €/mese',
                             buttonText: 'Scegli',
                             onTap: _buyMonthly,
                           ),
@@ -376,7 +425,7 @@ class _ProScreenState extends State<ProScreen>
                             subtitle: yearlyMonthlyEquivalent != null
                                 ? '${yearlyMonthlyEquivalent.toStringAsFixed(2)} €/mese'
                                 : 'Miglior rapporto qualità/prezzo',
-                            price: yearly?.price ?? '14,99 €/anno',
+                            price: yearly?.price ?? '17,99 €/anno',
                             buttonText: 'Scegli',
                             badge: 'PIÙ POPOLARE',
                             saving: yearlySavingAmount != null

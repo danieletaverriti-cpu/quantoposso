@@ -6,6 +6,7 @@ import '../services/budget_math.dart';
 import '../services/notifications.dart';
 import '../services/salary_cycle.dart';
 import '../services/iap_service.dart';
+import '../services/backup_service.dart';
 
 class AppState extends ChangeNotifier {
   final repo = Repository.instance;
@@ -58,7 +59,7 @@ bool get isProActive {
 
   //attivazioe versione pro
 
-   Future<void> unlockPro({
+Future<void> unlockPro({
   required String plan,
   required DateTime expiry,
 }) async {
@@ -70,6 +71,11 @@ bool get isProActive {
 
   await repo.saveSettings(updated);
   settings = updated;
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
+  }
+
   notifyListeners();
 }
 
@@ -88,6 +94,11 @@ Future<void> activateTrial() async {
 
   await repo.saveSettings(updated);
   settings = updated;
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
+  }
+
   notifyListeners();
 }
 
@@ -116,102 +127,157 @@ Future<void> revokePro() async {
 
 //backup dati
 Future<void> importBackup(Map<String, dynamic> data) async {
-  expenses
-    ..clear()
-    ..addAll(
+  // Pulisci DB
+  await repo.clearAllData();
+
+  // Expenses
+  final importedExpenses =
       ((data['expenses'] as List?) ?? [])
-          .map((e) => Expense.fromMap(e as Map<dynamic, dynamic>)),
-    );
+          .map((e) => Expense.fromMap(e as Map<dynamic, dynamic>))
+          .toList();
 
-  incomes
-    ..clear()
-    ..addAll(
+  for (final e in importedExpenses) {
+    await repo.upsertExpense(e);
+  }
+
+  // Incomes
+  final importedIncomes =
       ((data['incomes'] as List?) ?? [])
-          .map((i) => Income.fromMap(i as Map<dynamic, dynamic>)),
-    );
+          .map((i) => Income.fromMap(i as Map<dynamic, dynamic>))
+          .toList();
 
-  fixed
-    ..clear()
-    ..addAll(
+  for (final i in importedIncomes) {
+    await repo.upsertIncome(i);
+  }
+
+  // Fixed
+  final importedFixed =
       ((data['fixed'] as List?) ?? [])
-          .map((f) => FixedExpense.fromMap(f as Map<dynamic, dynamic>)),
-    );
+          .map((f) => FixedExpense.fromMap(f as Map<dynamic, dynamic>))
+          .toList();
 
-  goals
-    ..clear()
-    ..addAll(
+  for (final f in importedFixed) {
+    await repo.upsertFixed(f);
+  }
+
+  // Goals
+  final importedGoals =
       ((data['goals'] as List?) ?? [])
-          .map((g) => Goal.fromMap(g as Map<dynamic, dynamic>)),
-    );
+          .map((g) => Goal.fromMap(g as Map<dynamic, dynamic>))
+          .toList();
 
+  for (final g in importedGoals) {
+    await repo.upsertGoal(g);
+  }
+
+  // Settings
   final importedSettings = SettingsModel.fromMap(
     (data['settings'] as Map?)?.cast<dynamic, dynamic>() ?? {},
   );
 
-  await saveSettings(importedSettings);
+  await repo.saveSettings(importedSettings);
 
-  notifyListeners();
+  // Ricarica tutto da Hive
+  await refresh();
 }
 // Expenses
   Future<void> addExpense(Expense e) async {
-    await repo.upsertExpense(e);
-    expenses = repo.getExpenses();
-    await _rescheduleNotificationsSafe();
-    notifyListeners();
+  await repo.upsertExpense(e);
+  expenses = repo.getExpenses();
+  await _rescheduleNotificationsSafe();
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
   }
+
+  notifyListeners();
+}
 
   Future<void> deleteExpense(String id) async {
-    await repo.deleteExpense(id);
-    expenses = repo.getExpenses();
-    await _rescheduleNotificationsSafe();
-    notifyListeners();
+  await repo.deleteExpense(id);
+  expenses = repo.getExpenses();
+  await _rescheduleNotificationsSafe();
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
   }
 
+  notifyListeners();
+}
   // Incomes
   Future<void> addIncome(Income i) async {
-    await repo.upsertIncome(i);
-    incomes = repo.getIncomes();
-    await _rescheduleNotificationsSafe();
-    notifyListeners();
+  await repo.upsertIncome(i);
+  incomes = repo.getIncomes();
+  await _rescheduleNotificationsSafe();
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
   }
+
+  notifyListeners();
+}
 
   Future<void> deleteIncome(String id) async {
-    await repo.deleteIncome(id);
-    incomes = repo.getIncomes();
-    await _rescheduleNotificationsSafe();
-    notifyListeners();
+  await repo.deleteIncome(id);
+  incomes = repo.getIncomes();
+  await _rescheduleNotificationsSafe();
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
   }
+
+  notifyListeners();
+}
 
   // Fixed
-  Future<void> addFixed(FixedExpense e) async {
-    await repo.upsertFixed(e);
-    fixed = repo.getFixed();
-    await _rescheduleNotificationsSafe();
-    notifyListeners();
+Future<void> addFixed(FixedExpense e) async {
+  await repo.upsertFixed(e);
+  fixed = repo.getFixed();
+  await _rescheduleNotificationsSafe();
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
   }
 
+  notifyListeners();
+}
+
   Future<void> deleteFixed(String id) async {
-    await repo.deleteFixed(id);
-    fixed = repo.getFixed();
-    await _rescheduleNotificationsSafe();
-    notifyListeners();
+  await repo.deleteFixed(id);
+  fixed = repo.getFixed();
+  await _rescheduleNotificationsSafe();
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
   }
+
+  notifyListeners();
+}
 
   // Goals
   Future<void> addGoal(Goal g) async {
-    await repo.upsertGoal(g);
-    goals = repo.getGoals();
-    notifyListeners();
+  await repo.upsertGoal(g);
+  goals = repo.getGoals();
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
   }
 
+  notifyListeners();
+}
   // Alias per compatibilità con GoalsScreen
   Future<void> updateGoal(Goal g) => addGoal(g);
 
   Future<void> deleteGoal(String id) async {
-    await repo.deleteGoal(id);
-    goals = repo.getGoals();
-    notifyListeners();
+  await repo.deleteGoal(id);
+  goals = repo.getGoals();
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
   }
+
+  notifyListeners();
+}
 
   // Settings
   Future<void> saveSettings(SettingsModel s) async {
@@ -230,6 +296,11 @@ Future<void> importBackup(Map<String, dynamic> data) async {
   }
 
   await _rescheduleNotificationsSafe();
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
+  }
+
   notifyListeners();
 }
   // Alias per compatibilità con SettingsScreen
@@ -237,20 +308,30 @@ Future<void> importBackup(Map<String, dynamic> data) async {
 
   // ✅ Profile
   Future<void> saveProfile(UserProfile p) async {
-    await repo.saveProfile(p);
-    profile = p;
-    notifyListeners();
+  await repo.saveProfile(p);
+  profile = p;
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
   }
+
+  notifyListeners();
+}
   Future<void> setProfileAvatarPath(String? path) async {
   final updated = settings.copyWith(profileAvatarPath: path);
   await saveSettings(updated);
 }
 
   Future<void> clearProfile() async {
-    await repo.clearProfile();
-    profile = null;
-    notifyListeners();
+  await repo.clearProfile();
+  profile = null;
+
+  if (isProActive) {
+    await BackupService.instance.autoBackup(this);
   }
+
+  notifyListeners();
+}
   double _spentToday({
   required int cycleRemainingDays,
 }) {
