@@ -11,6 +11,7 @@ import '../../services/salary_cycle.dart';
 import 'package:quantoposso/ui/screens/pro_screen.dart';
 import 'package:quantoposso/ui/screens/settings_screen.dart';
 import 'package:quantoposso/ui/screens/statistics_screen.dart';
+import 'package:quantoposso/ui/screens/security/app_lock_screen.dart';
 
 class HomeShell extends StatefulWidget {
   final AppState state;
@@ -23,6 +24,35 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int index = 0;
   int addMode = 0; // 0 = spesa, 1 = entrata 
+  bool _locked = true;
+
+Future<void> _checkLock() async {
+  final s = widget.state.settings;
+
+  if (!s.appLockEnabled || !s.appLockSetupCompleted) {
+    if (mounted) {
+      setState(() => _locked = false);
+    }
+    return;
+  }
+
+  final result = await Navigator.of(context).push<bool>(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => AppLockScreen(
+        type: s.appLockType,
+        pin: s.appLockPin,
+      ),
+    ),
+  );
+
+  if (!mounted) return;
+
+  if (result == true) {
+    setState(() => _locked = false);
+  }
+}
+
 Widget _bottomItem({
   required IconData icon,
   required String label,
@@ -98,8 +128,6 @@ Widget _bottomItem({
     return;
   }
 
-
-
   Navigator.push(
     context,
     MaterialPageRoute(
@@ -107,6 +135,8 @@ Widget _bottomItem({
     ),
   );
 }
+
+
  void _openStatistics() {
   Navigator.pop(context); // chiude drawer
 

@@ -5,6 +5,7 @@ import 'package:quantoposso/app/state.dart';
 import 'package:quantoposso/data/models.dart';
 import 'home_shell.dart';
 import 'package:quantoposso/services/app_lock_service.dart';
+import 'package:quantoposso/ui/screens/security/app_pin_setup_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final AppState state;

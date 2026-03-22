@@ -15,6 +15,7 @@ import 'package:quantoposso/services/salary_cycle.dart';
 import 'package:quantoposso/ui/screens/pro_screen.dart';
 import 'package:quantoposso/ui/screens/export_screen.dart';
 import 'package:quantoposso/services/backup_service.dart';
+import 'package:quantoposso/ui/screens/security/app_pin_setup_screen.dart';
 
 
 class SettingsScreen extends StatefulWidget {
@@ -746,10 +747,165 @@ Row(
                     ),
                   ),
 
+
+const SizedBox(height: 12),
+
+_GlassCard(
+  child: Padding(
+    padding: const EdgeInsets.all(14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Sicurezza',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Blocca app'),
+          subtitle: Text(
+            s.appLockEnabled
+                ? 'Protezione attiva'
+                : 'Protezione disattivata',
+          ),
+          value: s.appLockEnabled,
+          onChanged: (v) async {
+            if (!v) {
+              final updated = s.copyWith(
+                appLockEnabled: false,
+                appLockType: 'none',
+                clearAppLockPin: true,
+              );
+              await widget.state.saveSettings(updated);
+              return;
+            }
+
+            if (!mounted) return;
+
+            showModalBottomSheet(
+              context: context,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              builder: (_) {
+                return SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Scegli il blocco app',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        ListTile(
+                          leading: const Icon(Icons.face_rounded),
+                          title: const Text('Face ID / impronta'),
+                          onTap: () async {
+                            Navigator.of(context).pop();
+                            final updated = s.copyWith(
+                              appLockEnabled: true,
+                              appLockType: 'biometric',
+                              clearAppLockPin: true,
+                              appLockSetupCompleted: true,
+                            );
+                            await widget.state.saveSettings(updated);
+                          },
+                        ),
+
+                        ListTile(
+                          leading: const Icon(Icons.pin_rounded),
+                          title: const Text('PIN a 4 cifre'),
+                          onTap: () async {
+                            Navigator.of(context).pop();
+
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => AppPinSetupScreen(
+                                  onCompleted: (pin) async {
+                                    final updated = widget.state.settings.copyWith(
+                                      appLockEnabled: true,
+                                      appLockType: 'pin',
+                                      appLockPin: pin,
+                                      appLockSetupCompleted: true,
+                                    );
+                                    await widget.state.saveSettings(updated);
+                                    if (!mounted) return;
+                                    Navigator.of(context).pop();
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+
+                        ListTile(
+                          leading: const Icon(Icons.security_rounded),
+                          title: const Text('Biometria + PIN'),
+                          onTap: () async {
+                            Navigator.of(context).pop();
+
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => AppPinSetupScreen(
+                                  onCompleted: (pin) async {
+                                    final updated = widget.state.settings.copyWith(
+                                      appLockEnabled: true,
+                                      appLockType: 'biometric_pin',
+                                      appLockPin: pin,
+                                      appLockSetupCompleted: true,
+                                    );
+                                    await widget.state.saveSettings(updated);
+                                    if (!mounted) return;
+                                    Navigator.of(context).pop();
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+
+        if (s.appLockEnabled) ...[
+          const Divider(),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.lock_outline_rounded),
+            title: const Text('Tipo di blocco'),
+            subtitle: Text(
+              switch (s.appLockType) {
+                'biometric' => 'Face ID / impronta',
+                'pin' => 'PIN a 4 cifre',
+                'biometric_pin' => 'Biometria + PIN',
+                _ => 'Nessuno',
+              },
+            ),
+          ),
+        ],
+      ],
+    ),
+  ),
+),
+
+
+
                   const SizedBox(height: 12),
-
-
-
 _GlassCard(
   child: Padding(
     padding: const EdgeInsets.all(14),
