@@ -172,6 +172,10 @@ class SettingsModel {
   final String? proPlan; // monthly / yearly
   final String? proExpiryDateIso;
   final bool proTrialUsed;
+  final bool appLockEnabled;
+  final String appLockType; // 'none' | 'biometric' | 'pin' | 'biometric_pin'
+  final String? appLockPin;
+  final bool appLockSetupCompleted;
 
   /// Risparmio mensile
   final double monthlySaving;
@@ -208,6 +212,12 @@ class SettingsModel {
     this.dailyReminderEnabled = false,
     this.dailyReminderHour = 20,
     this.dailyReminderMinute = 0,
+
+    //blocco faceid/pin
+    this.appLockEnabled = false,
+this.appLockType = 'none',
+this.appLockPin,
+this.appLockSetupCompleted = false,
 
    //stpendio
    this.paydayDay = 28,
@@ -254,6 +264,12 @@ class SettingsModel {
         'dailyReminderHour': dailyReminderHour,
         'dailyReminderMinute': dailyReminderMinute,
 
+        // blocco faceID/ping
+        'appLockEnabled': appLockEnabled,
+'appLockType': appLockType,
+'appLockPin': appLockPin,
+'appLockSetupCompleted': appLockSetupCompleted,
+
         // app
         'monthlySaving': monthlySaving,
         'paydayDay' : paydayDay,
@@ -299,6 +315,12 @@ class SettingsModel {
         dailyReminderHour: (m['dailyReminderHour'] as int?) ?? 20,
         dailyReminderMinute: (m['dailyReminderMinute'] as int?) ?? 0,
 
+        // blocco faceID/pin
+        appLockEnabled: (m['appLockEnabled'] as bool?) ?? false,
+appLockType: (m['appLockType'] as String?) ?? 'none',
+appLockPin: m['appLockPin'] as String?,
+appLockSetupCompleted: (m['appLockSetupCompleted'] as bool?) ?? false,
+
         // app
         monthlySaving: ((m['monthlySaving'] as num?) ?? 300).toDouble(),
         paydayDay: (m['paydayDay'] as int?) ?? 10,
@@ -343,6 +365,13 @@ class SettingsModel {
     bool? dailyReminderEnabled,
     int? dailyReminderHour,
     int? dailyReminderMinute,
+
+    //blocco faceID/pin
+    bool? appLockEnabled,
+String? appLockType,
+String? appLockPin,
+bool? clearAppLockPin,
+bool? appLockSetupCompleted,
 
     // app
     double? monthlySaving,
@@ -398,6 +427,12 @@ class SettingsModel {
       dailyReminderHour: dailyReminderHour ?? this.dailyReminderHour,
       dailyReminderMinute: dailyReminderMinute ?? this.dailyReminderMinute,
 
+      //blocco faceID/Pin
+      appLockEnabled: appLockEnabled ?? this.appLockEnabled,
+appLockType: appLockType ?? this.appLockType,
+appLockPin: clearAppLockPin == true ? null : (appLockPin ?? this.appLockPin),
+appLockSetupCompleted: appLockSetupCompleted ?? this.appLockSetupCompleted,
+      
       // app
       monthlySaving: monthlySaving ?? this.monthlySaving,
       paydayDay: paydayDay ?? this.paydayDay,

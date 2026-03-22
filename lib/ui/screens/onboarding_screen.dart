@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:quantoposso/app/state.dart';
 import 'package:quantoposso/data/models.dart';
 import 'home_shell.dart';
+import 'package:quantoposso/services/app_lock_service.dart';
+import 'package:quantoposso/ui/screens/security/pin_setup_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final AppState state;
@@ -27,6 +29,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   double _paydayDay = 28;
   bool _saving = false;
 
+  bool _biometricAvailable = false;
+bool _appLockEnabled = false;
+String _appLockType = 'none'; // none | biometric | pin | biometric_pin
+String? _appLockPin;
+
   @override
   void initState() {
     super.initState();
@@ -38,12 +45,90 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if ((s.profileName ?? '').trim().isNotEmpty) {
       _nameCtrl.text = s.profileName!.trim();
     }
+
+    _appLockEnabled = s.appLockEnabled;
+    _appLockType = s.appLockType;
+    _appLockPin = s.appLockPin;
+
+    _loadBiometricAvailability();
+
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadBiometricAvailability() async {
+    final available = await AppLockService.instance.isAvailable();
+    if (!mounted) return;
+    setState(() => _biometricAvailable = available);
+  }
+
+  String get _securitySubtitle {
+    switch (_appLockType) {
+      case 'biometric':
+        return 'Face ID / impronta attivi';
+      case 'pin':
+        return 'PIN a 4 cifre attivo';
+      case 'biometric_pin':
+        return 'Biometria + PIN attivi';
+      default:
+        return 'Nessun blocco impostato';
+    }
+  }
+
+  Future<void> _selectNoLock() async {
+    setState(() {
+      _appLockEnabled = false;
+      _appLockType = 'none';
+      _appLockPin = null;
+    });
+  }
+
+  Future<void> _selectBiometric() async {
+    setState(() {
+      _appLockEnabled = true;
+      _appLockType = 'biometric';
+      _appLockPin = null;
+    });
+  }
+
+  Future<void> _selectPinOnly() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PinSetupScreen(
+          onCompleted: (pin) {
+            _appLockEnabled = true;
+            _appLockType = 'pin';
+            _appLockPin = pin;
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _selectBiometricPin() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PinSetupScreen(
+          onCompleted: (pin) {
+            _appLockEnabled = true;
+            _appLockType = 'biometric_pin';
+            _appLockPin = pin;
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {});
   }
 
   Future<void> _finish() async {
@@ -70,6 +155,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         monthlySaving: _monthlySaving,
         paydayDay: _paydayDay.round(),
         profileName: name,
+        appLockEnabled: _appLockEnabled,
+        appLockType: _appLockType,
+        appLockPin: _appLockPin,
+        clearAppLockPin: _appLockType == 'none',
+        appLockSetupCompleted: true,
       ),
     );
 
@@ -328,11 +418,25 @@ Container(
             ),
           ),
         ],
-      ),
+     ),
     ],
   ),
 ),
+
+                          const SizedBox(height: 16),
+
+                          _SecurityCard(
+                            biometricAvailable: _biometricAvailable,
+                            currentType: _appLockType,
+                            subtitle: _securitySubtitle,
+                            onNoLock: _selectNoLock,
+                            onBiometric: _selectBiometric,
+                            onPin: _selectPinOnly,
+                            onBiometricPin: _selectBiometricPin,
+                          ),
+
                           const SizedBox(height: 20),
+
                           SizedBox(
                             width: double.infinity,
                             child: DecoratedBox(
@@ -743,6 +847,170 @@ class _SavingCard extends StatelessWidget {
   }
 }
 
+class _SecurityCard extends StatelessWidget {
+  final bool biometricAvailable;
+  final String currentType;
+  final String subtitle;
+  final VoidCallback onNoLock;
+  final VoidCallback onBiometric;
+  final VoidCallback onPin;
+  final VoidCallback onBiometricPin;
+
+  const _SecurityCard({
+    required this.biometricAvailable,
+    required this.currentType,
+    required this.subtitle,
+    required this.onNoLock,
+    required this.onBiometric,
+    required this.onPin,
+    required this.onBiometricPin,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    Widget option({
+      required IconData icon,
+      required String title,
+      required String value,
+      required VoidCallback onTap,
+    }) {
+      final selected = currentType == value;
+
+      return InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFFEEF2FF)
+                : theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFF2563EB)
+                  : theme.dividerColor.withValues(alpha: 0.35),
+              width: selected ? 1.6 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? const Color(0xFF2563EB).withValues(alpha: 0.12)
+                      : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: selected
+                      ? const Color(0xFF2563EB)
+                      : const Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: selected
+                        ? const Color(0xFF1D4ED8)
+                        : null,
+                  ),
+                ),
+              ),
+              if (selected)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF2563EB),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF8FAFF), Color(0xFFF4F6FA)],
+        ),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Sicurezza',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Proteggi QuantoPosso quando apri l’app. Puoi cambiare questa scelta in qualsiasi momento.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            subtitle,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF2563EB),
+            ),
+          ),
+          const SizedBox(height: 12),
+          option(
+            icon: Icons.lock_open_rounded,
+            title: 'Nessun blocco',
+            value: 'none',
+            onTap: onNoLock,
+          ),
+          const SizedBox(height: 10),
+          if (biometricAvailable) ...[
+            option(
+              icon: Icons.face_rounded,
+              title: 'Face ID / impronta',
+              value: 'biometric',
+              onTap: onBiometric,
+            ),
+            const SizedBox(height: 10),
+          ],
+          option(
+            icon: Icons.pin_rounded,
+            title: 'PIN a 4 cifre',
+            value: 'pin',
+            onTap: onPin,
+          ),
+          if (biometricAvailable) ...[
+            const SizedBox(height: 10),
+            option(
+              icon: Icons.security_rounded,
+              title: 'Biometria + PIN',
+              value: 'biometric_pin',
+              onTap: onBiometricPin,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
 class _RoundIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;

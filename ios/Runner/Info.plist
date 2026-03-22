@@ -22,6 +22,8 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>NSFaceIDUsageDescription</key>
+    <string>Usiamo Face ID per proteggere l’accesso a QuantoPosso.</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
