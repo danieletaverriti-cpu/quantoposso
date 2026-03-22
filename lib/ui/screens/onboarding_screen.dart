@@ -5,7 +5,6 @@ import 'package:quantoposso/app/state.dart';
 import 'package:quantoposso/data/models.dart';
 import 'home_shell.dart';
 import 'package:quantoposso/services/app_lock_service.dart';
-import 'package:quantoposso/ui/screens/security/pin_setup_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final AppState state;
@@ -98,7 +97,7 @@ String? _appLockPin;
   Future<void> _selectPinOnly() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => PinSetupScreen(
+        builder: (_) => AppPinSetupScreen(
           onCompleted: (pin) {
             _appLockEnabled = true;
             _appLockType = 'pin';
@@ -116,7 +115,7 @@ String? _appLockPin;
   Future<void> _selectBiometricPin() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => PinSetupScreen(
+        builder: (_) => AppPinSetupScreen(
           onCompleted: (pin) {
             _appLockEnabled = true;
             _appLockType = 'biometric_pin';
@@ -1033,6 +1032,234 @@ class _RoundIconButton extends StatelessWidget {
           height: 38,
           child: Icon(icon, color: const Color(0xFF1D4ED8)),
         ),
+      ),
+    );
+  }
+}
+class AppPinSetupScreen extends StatefulWidget {
+  final void Function(String pin) onCompleted;
+
+  const AppPinSetupScreen({
+    super.key,
+    required this.onCompleted,
+  });
+
+  @override
+  State<AppPinSetupScreen> createState() => _AppPinSetupScreenState();
+}
+
+class _AppPinSetupScreenState extends State<AppPinSetupScreen> {
+  String _firstPin = '';
+  String _confirmPin = '';
+  bool _confirmMode = false;
+  String? _error;
+
+  void _onDigit(String digit) {
+    setState(() {
+      if (!_confirmMode) {
+        if (_firstPin.length < 4) _firstPin += digit;
+        if (_firstPin.length == 4) {
+          _confirmMode = true;
+        }
+      } else {
+        if (_confirmPin.length < 4) _confirmPin += digit;
+        if (_confirmPin.length == 4) {
+          if (_confirmPin == _firstPin) {
+            widget.onCompleted(_firstPin);
+          } else {
+            _error = 'I codici non coincidono';
+            _firstPin = '';
+            _confirmPin = '';
+            _confirmMode = false;
+          }
+        }
+      }
+    });
+  }
+
+  void _backspace() {
+    setState(() {
+      if (!_confirmMode) {
+        if (_firstPin.isNotEmpty) {
+          _firstPin = _firstPin.substring(0, _firstPin.length - 1);
+        }
+      } else {
+        if (_confirmPin.isNotEmpty) {
+          _confirmPin = _confirmPin.substring(0, _confirmPin.length - 1);
+        }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final value = _confirmMode ? _confirmPin : _firstPin;
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          const _OnboardingBackground(),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const Spacer(),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Expanded(
+                    child: Center(
+                      child: _GlassCard(
+                        radius: 28,
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 64,
+                                height: 64,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Icon(
+                                  Icons.lock_rounded,
+                                  color: Colors.white,
+                                  size: 30,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              Text(
+                                _confirmMode
+                                    ? 'Conferma il PIN'
+                                    : 'Scegli un PIN a 4 cifre',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _confirmMode
+                                    ? 'Reinserisci il codice per confermare.'
+                                    : 'Questo codice servirà per sbloccare Quanto Posso.',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  height: 1.3,
+                                ),
+                              ),
+                              const SizedBox(height: 22),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(4, (i) {
+                                  final filled = i < value.length;
+                                  return Container(
+                                    width: 18,
+                                    height: 18,
+                                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                                    decoration: BoxDecoration(
+                                      color: filled
+                                          ? const Color(0xFF2563EB)
+                                          : Colors.grey.shade300,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  );
+                                }),
+                              ),
+                              const SizedBox(height: 16),
+                              if (_error != null)
+                                Text(
+                                  _error!,
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              const Spacer(),
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                  for (final digit in ['1', '2', '3', '4', '5', '6', '7', '8', '9'])
+                                    _AppPinButton(
+                                      label: digit,
+                                      onTap: () => _onDigit(digit),
+                                    ),
+                                  const SizedBox(width: 84),
+                                  _AppPinButton(
+                                    label: '0',
+                                    onTap: () => _onDigit('0'),
+                                  ),
+                                  _AppPinButton(
+                                    icon: Icons.backspace_outlined,
+                                    onTap: _backspace,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AppPinButton extends StatelessWidget {
+  final String? label;
+  final IconData? icon;
+  final VoidCallback onTap;
+
+  const _AppPinButton({
+    this.label,
+    this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 84,
+      height: 84,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          shape: const CircleBorder(),
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF1D4ED8),
+          elevation: 0,
+        ),
+        child: icon != null
+            ? Icon(icon)
+            : Text(
+                label!,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
       ),
     );
   }
