@@ -338,43 +338,58 @@ void _openTermsPage() {
 }
 
 String get _privacyText => '''
-Ultimo aggiornamento: 2026
+Privacy Policy  
+Aggiornata al 23/03/2026  
 
-Quanto Posso è un'app progettata per aiutare gli utenti a gestire spese, entrate e budget personale.
+Quanto Posso ("noi", "nostro") rispetta la tua privacy. La presente Informativa descrive come vengono gestite le informazioni quando utilizzi l’applicazione mobile Quanto Posso.
 
-Raccolta dei dati
-L'app non raccoglie dati personali identificabili come nome, email o numero di telefono per finalità di tracciamento o marketing.
+## Dati raccolti
 
-Dati inseriti dall'utente
-Le informazioni inserite nell'app, come spese, entrate, obiettivi di risparmio e impostazioni, vengono salvate principalmente sul dispositivo dell'utente.
+Quanto Posso non raccoglie dati personali, come ad esempio:
+- Nome
+- Email
+- Numero di telefono
+- Posizione
 
-Condivisione dei dati
-Quanto Posso non vende e non condivide i dati personali dell'utente con terze parti per finalità pubblicitarie.
+Tutti i dati inseriti dall’utente (come spese e informazioni finanziarie) vengono salvati esclusivamente sul dispositivo dell’utente e non vengono trasmessi ai nostri server.
 
-Sicurezza
-L'app adotta misure ragionevoli per proteggere i dati gestiti sul dispositivo.
+## Utilizzo dei dati
 
-Eliminazione dei dati
-L'utente può eliminare i propri dati direttamente dall'app oppure rimuovendola dal dispositivo, salvo eventuali dati salvati in backup locali del sistema operativo.
+Poiché non raccogliamo dati personali, non utilizziamo, condividiamo o vendiamo alcuna informazione degli utenti.
 
-Contatti
-Per domande sulla privacy puoi scrivere a:
+## Pagamenti
 
+Tutti i pagamenti e gli abbonamenti sono gestiti in modo sicuro da Apple tramite App Store.  
+Non abbiamo accesso ai dati di pagamento dell’utente.
+
+## Conservazione dei dati
+
+I dati vengono salvati localmente sul dispositivo dell’utente.  
+Se l’app viene disinstallata, i dati potrebbero essere eliminati definitivamente, salvo eventuali backup del dispositivo.
+
+## Servizi di terze parti
+
+L’app non utilizza strumenti di tracciamento, analisi o pubblicità di terze parti.
+
+## Minori
+
+L’app non è destinata a minori di 13 anni e non raccoglie consapevolmente dati personali di minori.
+
+## Modifiche alla presente informativa
+
+Ci riserviamo il diritto di aggiornare la presente Privacy Policy. Eventuali modifiche saranno rese disponibili all’interno dell’app.
+
+## Contatti
+
+Per qualsiasi domanda relativa alla presente informativa, puoi contattarci all’indirizzo:  
 quantoposso.app@gmail.com
 ''';
+
 
 String get _termsText => '''
 Termini di utilizzo – Quanto Posso
 
-Quanto Posso è un'app di supporto alla gestione del budget personale.
-
-L'app non fornisce consulenza finanziaria, fiscale, legale o professionale. I contenuti e i calcoli presenti nell'app hanno finalità esclusivamente organizzative e informative.
-
-L'utente è responsabile dei dati inseriti e delle decisioni prese sulla base delle informazioni mostrate dall'app.
-
-Alcune funzionalità dell'app possono essere gratuite, mentre altre potrebbero essere disponibili in futuro come funzionalità premium o acquisti in-app.
-
-Utilizzando l'app, l'utente accetta questi termini.
+Rimando a : https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 
 Per supporto o informazioni:
 quantoposso.app@gmail.com
