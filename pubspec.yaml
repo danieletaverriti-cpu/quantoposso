@@ -1,7 +1,7 @@
 name: quantoposso
 description: App semplice per controllo spese (giornaliere + fisse) con obiettivi e promemoria.
 publish_to: "none"
-version: 1.0.1+935
+version: 1.0.1+936
 
 environment:
   sdk: ">=3.6.0 <4.0.0"

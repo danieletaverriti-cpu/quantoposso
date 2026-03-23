@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../app/state.dart';
 import '../../services/iap_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProScreen extends StatefulWidget {
   final AppState state;
@@ -120,6 +121,20 @@ class _ProScreenState extends State<ProScreen>
       );
     }
   }
+
+  Future<void> _openPrivacyPolicy() async {
+  final uri = Uri.parse('https://victorious-argon-075.notion.site/Privacy-Policy-Quanto-Posso-32cdb36f4b6080e4b1dae80dd3b5aa7c');
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+Future<void> _openTerms() async {
+  final uri = Uri.parse('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/');
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
 
   Future<void> _startTrial() async {
     await widget.state.activateTrial();
@@ -441,14 +456,64 @@ Text(
                     ),
                     const SizedBox(height: 14),
                     TextButton(
-                      onPressed: _restore,
-                      child: const Text(
-                        'Ripristina acquisti',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
+  onPressed: _restore,
+  child: const Text(
+    'Ripristina acquisti',
+    style: TextStyle(
+      fontWeight: FontWeight.w800,
+    ),
+  ),
+),
+
+const SizedBox(height: 6),
+
+// 🔗 LINK OBBLIGATORI (Apple)
+Wrap(
+  alignment: WrapAlignment.center,
+  crossAxisAlignment: WrapCrossAlignment.center,
+  spacing: 6,
+  children: [
+    TextButton(
+      onPressed: _openPrivacyPolicy,
+      child: const Text(
+        'Privacy Policy',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
+    ),
+    const Text(
+      '•',
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+    TextButton(
+      onPressed: _openTerms,
+      child: const Text(
+        'Termini di utilizzo',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
+    ),
+  ],
+),
+
+const SizedBox(height: 6),
+
+// 📄 TESTO LEGALE OBBLIGATORIO
+Text(
+  'Abbonamento mensile: 1 mese a ${monthly?.price ?? '2,99 €/mese'}. '
+  'Abbonamento annuale: 1 anno a ${yearly?.price ?? '17,99 €/anno'}. '
+  'Il pagamento verrà addebitato sull’Apple ID alla conferma dell’acquisto. '
+  'L’abbonamento si rinnova automaticamente salvo disdetta almeno 24 ore prima della scadenza. '
+  'Il rinnovo verrà addebitato entro le 24 ore precedenti la fine del periodo corrente. '
+  'Puoi gestire o annullare l’abbonamento dalle impostazioni del tuo account Apple. '
+  'Eventuale periodo di prova gratuito verrà annullato se acquisti un abbonamento.',
+  textAlign: TextAlign.center,
+  style: theme.textTheme.bodySmall?.copyWith(
+    color: Colors.white.withValues(alpha: 0.80),
+    height: 1.4,
+  ),
+),
                     Text(
                       'L’abbonamento si rinnova automaticamente salvo disattivazione dalle impostazioni dello store.',
                       textAlign: TextAlign.center,

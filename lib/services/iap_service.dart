@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:in_app_purchase/in_app_purchase.dart';
+
 import '../app/state.dart';
 
 class IapService {
@@ -32,65 +34,82 @@ class IapService {
 
   Future<void> init(AppState state) async {
     await _subscription?.cancel();
+    _subscription = null;
 
     final available = await _iap.isAvailable();
-    if (!available) return;
+    print('IAP AVAILABLE -> $available');
+
+    if (!available) {
+      print('IAP non disponibile su questo device/account');
+      return;
+    }
 
     final response = await _iap.queryProductDetails({
       monthlyId,
       yearlyId,
     });
 
+    print('IAP FOUND -> ${response.productDetails.map((e) => e.id).toList()}');
+    print('IAP NOT FOUND -> ${response.notFoundIDs}');
+    print('IAP RESPONSE ERROR -> ${response.error}');
+
     _products = response.productDetails;
 
     _subscription = _iap.purchaseStream.listen(
       (purchases) async {
         for (final purchase in purchases) {
-          await _handlePurchaseUpdate(purchase, state);
+          print('IAP STATUS -> ${purchase.productID} | ${purchase.status}');
+          print('IAP ERROR -> ${purchase.error}');
+
+          switch (purchase.status) {
+            case PurchaseStatus.pending:
+              print('Acquisto in attesa...');
+              break;
+
+            case PurchaseStatus.purchased:
+              print('Acquisto completato');
+              await _handlePurchase(purchase, state);
+              break;
+
+            case PurchaseStatus.restored:
+              print('Acquisto ripristinato');
+              await _handlePurchase(purchase, state);
+              break;
+
+            case PurchaseStatus.error:
+              print('Errore acquisto: ${purchase.error}');
+              break;
+
+            case PurchaseStatus.canceled:
+              print('Acquisto annullato');
+              break;
+          }
+
+          if (purchase.pendingCompletePurchase) {
+            print('Completo acquisto pendente...');
+            await _iap.completePurchase(purchase);
+          }
         }
       },
-      onError: (_) {},
+      onError: (e) {
+        print('PURCHASE STREAM ERROR -> $e');
+      },
+      onDone: () {
+        print('PURCHASE STREAM CHIUSO');
+      },
     );
   }
 
-  Future<void> _handlePurchaseUpdate(
-    PurchaseDetails purchase,
-    AppState state,
-  ) async {
-    switch (purchase.status) {
-      case PurchaseStatus.pending:
-        return;
-
-      case PurchaseStatus.error:
-        if (purchase.pendingCompletePurchase) {
-          await _iap.completePurchase(purchase);
-        }
-        return;
-
-      case PurchaseStatus.canceled:
-        if (purchase.pendingCompletePurchase) {
-          await _iap.completePurchase(purchase);
-        }
-        return;
-
-      case PurchaseStatus.purchased:
-      case PurchaseStatus.restored:
-        await _unlockFromPurchase(purchase, state);
-
-        if (purchase.pendingCompletePurchase) {
-          await _iap.completePurchase(purchase);
-        }
-        return;
-    }
-  }
-
-  Future<void> _unlockFromPurchase(
+  Future<void> _handlePurchase(
     PurchaseDetails purchase,
     AppState state,
   ) async {
     final now = DateTime.now();
 
+    print('HANDLE PURCHASE -> ${purchase.productID}');
+
     if (purchase.productID == monthlyId) {
+      print('Sblocco PRO mensile');
       await state.unlockPro(
         plan: 'monthly',
         expiry: now.add(const Duration(days: 30)),
@@ -99,31 +118,55 @@ class IapService {
     }
 
     if (purchase.productID == yearlyId) {
+      print('Sblocco PRO annuale');
       await state.unlockPro(
         plan: 'yearly',
         expiry: now.add(const Duration(days: 365)),
       );
       return;
     }
+
+    print('Prodotto acquistato non riconosciuto: ${purchase.productID}');
   }
 
   Future<void> buyMonthly() async {
     final product = monthlyProduct;
-    if (product == null) return;
+    print('BUY MONTHLY -> ${product?.id}');
+
+    if (product == null) {
+      print('Prodotto mensile non trovato');
+      return;
+    }
 
     final purchaseParam = PurchaseParam(productDetails: product);
-    await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+
+    final started = await _iap.buyNonConsumable(
+      purchaseParam: purchaseParam,
+    );
+
+    print('BUY MONTHLY STARTED -> $started');
   }
 
   Future<void> buyYearly() async {
     final product = yearlyProduct;
-    if (product == null) return;
+    print('BUY YEARLY -> ${product?.id}');
+
+    if (product == null) {
+      print('Prodotto annuale non trovato');
+      return;
+    }
 
     final purchaseParam = PurchaseParam(productDetails: product);
-    await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+
+    final started = await _iap.buyNonConsumable(
+      purchaseParam: purchaseParam,
+    );
+
+    print('BUY YEARLY STARTED -> $started');
   }
 
   Future<void> restorePurchases() async {
+    print('RESTORE PURCHASES -> avvio');
     await _iap.restorePurchases();
   }
 
