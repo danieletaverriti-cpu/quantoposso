@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 
 import '../app/state.dart';
 
@@ -8,13 +10,14 @@ class IapService {
   IapService._();
   static final IapService instance = IapService._();
 
-  static const String monthlyId = 'quantoposso_pro_monthly';
-  static const String yearlyId = 'quantoposso_pro_yearly';
+  static const String monthlyId = 'quantoposso_pro_monthly_v2';
+  static const String yearlyId = 'quantoposso_pro_yearly_v2';
 
   final InAppPurchase _iap = InAppPurchase.instance;
 
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   List<ProductDetails> _products = [];
+  List<PurchaseDetails> _purchases = [];
 
   ProductDetails? get monthlyProduct {
     try {
@@ -53,10 +56,19 @@ class IapService {
     print('IAP NOT FOUND -> ${response.notFoundIDs}');
     print('IAP RESPONSE ERROR -> ${response.error}');
 
+    for (final product in response.productDetails) {
+      print('PRODUCT -> ${product.id}');
+      print('PRICE -> ${product.price}');
+      print('RAW PRICE -> ${product.rawPrice}');
+      print('CURRENCY CODE -> ${product.currencyCode}');
+    }
+
     _products = response.productDetails;
 
     _subscription = _iap.purchaseStream.listen(
       (purchases) async {
+        _purchases = purchases;
+
         for (final purchase in purchases) {
           print('IAP STATUS -> ${purchase.productID} | ${purchase.status}');
           print('IAP ERROR -> ${purchase.error}');
@@ -67,12 +79,7 @@ class IapService {
               break;
 
             case PurchaseStatus.purchased:
-              print('Acquisto completato');
-              await _handlePurchase(purchase, state);
-              break;
-
             case PurchaseStatus.restored:
-              print('Acquisto ripristinato');
               await _handlePurchase(purchase, state);
               break;
 
@@ -109,7 +116,6 @@ class IapService {
     print('HANDLE PURCHASE -> ${purchase.productID}');
 
     if (purchase.productID == monthlyId) {
-      print('Sblocco PRO mensile');
       await state.unlockPro(
         plan: 'monthly',
         expiry: now.add(const Duration(days: 30)),
@@ -118,7 +124,6 @@ class IapService {
     }
 
     if (purchase.productID == yearlyId) {
-      print('Sblocco PRO annuale');
       await state.unlockPro(
         plan: 'yearly',
         expiry: now.add(const Duration(days: 365)),
@@ -127,6 +132,19 @@ class IapService {
     }
 
     print('Prodotto acquistato non riconosciuto: ${purchase.productID}');
+  }
+
+  PurchaseDetails? _findOwnedSubscription(String productId) {
+    try {
+      return _purchases.firstWhere(
+        (p) =>
+            p.productID == productId &&
+            (p.status == PurchaseStatus.purchased ||
+                p.status == PurchaseStatus.restored),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> buyMonthly() async {
@@ -138,7 +156,22 @@ class IapService {
       return;
     }
 
-    final purchaseParam = PurchaseParam(productDetails: product);
+    PurchaseParam purchaseParam;
+
+    if (Platform.isAndroid) {
+      final oldYearly = _findOwnedSubscription(yearlyId);
+      purchaseParam = GooglePlayPurchaseParam(
+        productDetails: product,
+        changeSubscriptionParam: oldYearly is GooglePlayPurchaseDetails
+            ? ChangeSubscriptionParam(
+                oldPurchaseDetails: oldYearly,
+                replacementMode: ReplacementMode.withTimeProration,
+              )
+            : null,
+      );
+    } else {
+      purchaseParam = PurchaseParam(productDetails: product);
+    }
 
     final started = await _iap.buyNonConsumable(
       purchaseParam: purchaseParam,
@@ -156,7 +189,22 @@ class IapService {
       return;
     }
 
-    final purchaseParam = PurchaseParam(productDetails: product);
+    PurchaseParam purchaseParam;
+
+    if (Platform.isAndroid) {
+      final oldMonthly = _findOwnedSubscription(monthlyId);
+      purchaseParam = GooglePlayPurchaseParam(
+        productDetails: product,
+        changeSubscriptionParam: oldMonthly is GooglePlayPurchaseDetails
+            ? ChangeSubscriptionParam(
+                oldPurchaseDetails: oldMonthly,
+                replacementMode: ReplacementMode.withTimeProration,
+              )
+            : null,
+      );
+    } else {
+      purchaseParam = PurchaseParam(productDetails: product);
+    }
 
     final started = await _iap.buyNonConsumable(
       purchaseParam: purchaseParam,
