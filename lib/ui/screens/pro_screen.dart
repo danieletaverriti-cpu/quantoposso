@@ -423,7 +423,7 @@ Text(
   style: TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w600,
-    color: Colors.white.withValues(alpha: 0.80),
+    color: const Color(0xFF4B5563),
   ),
 ),
                           const SizedBox(height: 18),
@@ -481,12 +481,12 @@ Wrap(
       ),
     ),
     const Text(
-      '•',
-      style: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w700,
-      ),
-    ),
+  '•',
+  style: TextStyle(
+    color: Color(0xFF6B7280),
+    fontWeight: FontWeight.w700,
+  ),
+),
     TextButton(
       onPressed: _openTerms,
       child: const Text(
@@ -510,18 +510,18 @@ Text(
   'Eventuale periodo di prova gratuito verrà annullato se acquisti un abbonamento.',
   textAlign: TextAlign.center,
   style: theme.textTheme.bodySmall?.copyWith(
-    color: Colors.white.withValues(alpha: 0.80),
+  color: const Color(0xFF6B7280),
+  height: 1.4,
+),
+),
+                   Text(
+  'L’abbonamento si rinnova automaticamente salvo disattivazione dalle impostazioni dello store.',
+  textAlign: TextAlign.center,
+  style: theme.textTheme.bodySmall?.copyWith(
+    color: const Color(0xFF6B7280),
     height: 1.4,
   ),
 ),
-                    Text(
-                      'L’abbonamento si rinnova automaticamente salvo disattivazione dalle impostazioni dello store.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.80),
-                        height: 1.4,
-                      ),
-                    ),
                   ],
                 ),
               ),
