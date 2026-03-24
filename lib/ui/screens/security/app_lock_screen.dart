@@ -46,6 +46,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
 
   void _onDigit(String d) {
     setState(() {
+      if (_error != null) _error = null;
+
       if (_input.length < 4) _input += d;
 
       if (_input.length == 4) {
@@ -70,6 +72,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
   @override
   Widget build(BuildContext context) {
     final showPin = widget.type == 'pin' || widget.type == 'biometric_pin';
+    final showBiometricRetry =
+        widget.type == 'biometric' || widget.type == 'biometric_pin';
 
     return Scaffold(
       body: Container(
@@ -84,11 +88,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
           child: Column(
             children: [
               const SizedBox(height: 40),
-
               const Icon(Icons.lock, color: Colors.white, size: 50),
-
               const SizedBox(height: 20),
-
               const Text(
                 'Sblocca QuantoPosso',
                 style: TextStyle(
@@ -98,7 +99,22 @@ class _AppLockScreenState extends State<AppLockScreen> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              if (showBiometricRetry) ...[
+                const SizedBox(height: 16),
+                TextButton.icon(
+                  onPressed: _tryBiometric,
+                  icon: const Icon(Icons.face, color: Colors.white),
+                  label: const Text(
+                    'Riprova Face ID / impronta',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 20),
 
               if (showPin) ...[
                 Row(
@@ -118,19 +134,21 @@ class _AppLockScreenState extends State<AppLockScreen> {
                     );
                   }),
                 ),
-
                 const SizedBox(height: 20),
-
                 if (_error != null)
-                  Text(_error!, style: const TextStyle(color: Colors.red)),
-
+                  Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 const SizedBox(height: 30),
-
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
                   children: [
-                    for (final d in ['1','2','3','4','5','6','7','8','9'])
+                    for (final d in ['1', '2', '3', '4', '5', '6', '7', '8', '9'])
                       _btn(d, () => _onDigit(d)),
                     const SizedBox(width: 84),
                     _btn('0', () => _onDigit('0')),
