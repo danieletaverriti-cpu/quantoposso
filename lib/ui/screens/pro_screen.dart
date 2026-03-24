@@ -137,23 +137,26 @@ Future<void> _openTerms() async {
 }
 
   Future<void> _startTrial() async {
-    await widget.state.activateTrial();
-
+  try {
+    await IapService.instance.buyMonthly();
     if (!mounted) return;
-
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Prova PRO attivata per 7 giorni'),
+        content: Text('Acquisto avviato'),
       ),
     );
-
-    Navigator.pop(context);
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Errore acquisto: $e')),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final state = widget.state;
+    
 
     final monthly = IapService.instance.monthlyProduct;
     final yearly = IapService.instance.yearlyProduct;
@@ -368,15 +371,15 @@ Future<void> _openTerms() async {
   decoration: BoxDecoration(
     borderRadius: BorderRadius.circular(18),
     gradient: LinearGradient(
-      colors: state.settings.proTrialUsed
-          ? [
-              const Color(0xFF94A3B8),
-              const Color(0xFF64748B),
-            ]
-          : [
-              const Color(0xFF2563EB),
-              const Color(0xFF7C3AED),
-            ],
+      colors: monthly == null
+    ? [
+        const Color(0xFF94A3B8),
+        const Color(0xFF64748B),
+      ]
+    : [
+        const Color(0xFF2563EB),
+        const Color(0xFF7C3AED),
+      ],
     ),
     boxShadow: [
       BoxShadow(
@@ -387,7 +390,7 @@ Future<void> _openTerms() async {
     ],
   ),
   child: ElevatedButton.icon(
-    onPressed: state.settings.proTrialUsed ? null : _startTrial,
+    onPressed: monthly != null ? _startTrial : null,
     style: ElevatedButton.styleFrom(
       backgroundColor: Colors.transparent,
       shadowColor: Colors.transparent,
@@ -399,48 +402,47 @@ Future<void> _openTerms() async {
       padding: const EdgeInsets.symmetric(vertical: 18),
     ),
     icon: Icon(
-      Icons.bolt_rounded,
-      color: Colors.white.withValues(alpha: state.settings.proTrialUsed ? 0.85 : 1),
-    ),
+  Icons.bolt_rounded,
+  color: Colors.white.withValues(alpha: monthly == null ? 0.85 : 1),
+),
     label: Text(
-      state.settings.proTrialUsed
-          ? 'Prova già utilizzata'
-          : 'Prova PRO gratis per 7 giorni',
-      style: TextStyle(
-        color: Colors.white.withValues(alpha: state.settings.proTrialUsed ? 0.85 : 1),
-        fontWeight: FontWeight.w900,
-        fontSize: 17,
-      ),
-    ),
+  monthly == null
+      ? 'Offerta non disponibile'
+      : 'Prova gratuita di 7 giorni',
+  style: TextStyle(
+    color: Colors.white.withValues(alpha: monthly == null ? 0.85 : 1),
+    fontWeight: FontWeight.w900,
+    fontSize: 17,
+  ),
+),
   ),
 ),
 const SizedBox(height: 8),
 Text(
-  state.settings.proTrialUsed
-      ? 'Puoi comunque scegliere un piano PRO qui sotto'
-      : 'Annulla quando vuoi',
+  monthly == null
+      ? 'Riprova tra poco'
+      : 'Poi ${monthly?.price ?? '—'}. Annulla quando vuoi',
   textAlign: TextAlign.center,
-  style: TextStyle(
+  style: const TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w600,
-    color: const Color(0xFF4B5563),
+    color: Color(0xFF4B5563),
   ),
 ),
                           const SizedBox(height: 18),
                           _PlanCard(
                             title: 'Mensile',
                             subtitle: 'Accesso completo a tutte le funzioni PRO',
-                            price: monthly?.price ?? '2,99 €/mese',
+                            price: monthly?.price ?? '—',
                             buttonText: 'Scegli',
                             onTap: _buyMonthly,
                           ),
                           const SizedBox(height: 14),
                           _PlanCard(
                             title: 'Annuale',
-                            subtitle: yearlyMonthlyEquivalent != null
-                                ? '${yearlyMonthlyEquivalent.toStringAsFixed(2)} €/mese'
-                                : 'Miglior rapporto qualità/prezzo',
-                            price: yearly?.price ?? '17,99 €/anno',
+                            subtitle: 
+                                'Miglior rapporto qualità/prezzo',
+                            price: yearly?.price ?? '—',
                             buttonText: 'Scegli',
                             badge: 'PIÙ POPOLARE',
                             saving: yearlySavingAmount != null
@@ -501,8 +503,8 @@ const SizedBox(height: 6),
 
 // 📄 TESTO LEGALE OBBLIGATORIO
 Text(
-  'Abbonamento mensile: 1 mese a ${monthly?.price ?? '2,99 €/mese'}. '
-  'Abbonamento annuale: 1 anno a ${yearly?.price ?? '17,99 €/anno'}. '
+  'Abbonamento mensile: 1 mese a ${monthly?.price ?? '—'}. '
+  'Abbonamento annuale: 1 anno a ${yearly?.price ?? '—'}. '
   'Il pagamento verrà addebitato sull’Apple ID alla conferma dell’acquisto. '
   'L’abbonamento si rinnova automaticamente salvo disdetta almeno 24 ore prima della scadenza. '
   'Il rinnovo verrà addebitato entro le 24 ore precedenti la fine del periodo corrente. '

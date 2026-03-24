@@ -9,7 +9,6 @@ import 'package:quantoposso/ui/screens/settings_screen.dart';
 import 'faq_screen.dart';
 import '../../services/salary_cycle.dart';
 import 'package:quantoposso/ui/screens/pro_screen.dart';
-import 'package:quantoposso/ui/screens/settings_screen.dart';
 import 'package:quantoposso/ui/screens/statistics_screen.dart';
 import 'package:quantoposso/ui/screens/security/app_lock_screen.dart';
 
@@ -21,18 +20,55 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int index = 0;
   int addMode = 0; // 0 = spesa, 1 = entrata 
   bool _locked = true;
+  bool _isCheckingLock = false;
 
-Future<void> _checkLock() async {
+@override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkLock();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+@override
+void didChangeAppLifecycleState(AppLifecycleState state) {
+  if (state == AppLifecycleState.paused ||
+      state == AppLifecycleState.inactive) {
+    _locked = true;
+  }
+
+  if (state == AppLifecycleState.resumed) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _locked && !_isCheckingLock) {
+        _checkLock();
+      }
+    });
+  }
+}
+
+  Future<void> _checkLock() async {
+  if (_isCheckingLock) return;
+  _isCheckingLock = true;
+
   final s = widget.state.settings;
 
   if (!s.appLockEnabled || !s.appLockSetupCompleted) {
     if (mounted) {
       setState(() => _locked = false);
     }
+    _isCheckingLock = false;
     return;
   }
 
@@ -46,11 +82,18 @@ Future<void> _checkLock() async {
     ),
   );
 
-  if (!mounted) return;
+  if (!mounted) {
+    _isCheckingLock = false;
+    return;
+  }
 
   if (result == true) {
     setState(() => _locked = false);
+  } else {
+    setState(() => _locked = true);
   }
+
+  _isCheckingLock = false;
 }
 
 Widget _bottomItem({
@@ -259,6 +302,14 @@ void openAdd({required int mode}) {
 
   @override
   Widget build(BuildContext context) {
+    if (_locked) {
+  return const Scaffold(
+    body: Center(
+      child: CircularProgressIndicator(),
+    ),
+  );
+}
+
     final pages = <Widget>[
       dash.DashboardScreen(
         state: widget.state,
