@@ -16,31 +16,48 @@ class AppLockScreen extends StatefulWidget {
 }
 
 class _AppLockScreenState extends State<AppLockScreen> {
-  final _localAuth = LocalAuthentication();
+  final LocalAuthentication _localAuth = LocalAuthentication();
 
   String _input = '';
   String? _error;
+  bool _isAuthenticating = false;
 
   @override
   void initState() {
     super.initState();
-    _tryBiometric();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tryBiometric();
+    });
   }
 
   Future<void> _tryBiometric() async {
-    if (widget.type == 'biometric' || widget.type == 'biometric_pin') {
-      try {
-        final ok = await _localAuth.authenticate(
-          localizedReason: 'Sblocca QuantoPosso',
-          options: const AuthenticationOptions(
-            biometricOnly: true,
-          ),
-        );
+    if (_isAuthenticating) return;
 
-        if (ok && mounted) {
-          Navigator.of(context).pop(true);
-        }
-      } catch (_) {}
+    final canUseBiometric =
+        widget.type == 'biometric' || widget.type == 'biometric_pin';
+
+    if (!canUseBiometric) return;
+
+    _isAuthenticating = true;
+
+    try {
+      final ok = await _localAuth.authenticate(
+        localizedReason: 'Sblocca QuantoPosso',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+
+      if (!mounted) return;
+
+      if (ok) {
+        Navigator.of(context).pop(true);
+      }
+    } catch (_) {
+      // niente: lasciamo eventuale fallback PIN o bottone riprova
+    } finally {
+      _isAuthenticating = false;
     }
   }
 
@@ -48,7 +65,9 @@ class _AppLockScreenState extends State<AppLockScreen> {
     setState(() {
       if (_error != null) _error = null;
 
-      if (_input.length < 4) _input += d;
+      if (_input.length < 4) {
+        _input += d;
+      }
 
       if (_input.length == 4) {
         if (_input == widget.pin) {
@@ -64,6 +83,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
   void _back() {
     if (_input.isNotEmpty) {
       setState(() {
+        _error = null;
         _input = _input.substring(0, _input.length - 1);
       });
     }
@@ -77,6 +97,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
 
     return Scaffold(
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF1D4ED8), Color(0xFF2563EB)],
@@ -85,78 +107,140 @@ class _AppLockScreenState extends State<AppLockScreen> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              const Icon(Icons.lock, color: Colors.white, size: 50),
-              const SizedBox(height: 20),
-              const Text(
-                'Sblocca QuantoPosso',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-
-              if (showBiometricRetry) ...[
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: _tryBiometric,
-                  icon: const Icon(Icons.face, color: Colors.white),
-                  label: const Text(
-                    'Riprova Face ID / impronta',
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 92,
+                    height: 92,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.10),
+                          blurRadius: 24,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.lock_rounded,
+                      color: Colors.white,
+                      size: 46,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'App protetta',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                ),
-              ],
-
-              const SizedBox(height: 20),
-
-              if (showPin) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (i) {
-                    final filled = i < _input.length;
-                    return Container(
-                      width: 18,
-                      height: 18,
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: filled
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.3),
-                        shape: BoxShape.circle,
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Sblocca per continuare',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  if (showBiometricRetry) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _tryBiometric,
+                        icon: const Icon(Icons.face_rounded),
+                        label: const Text('Riprova Face ID / impronta'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF111827),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 20),
-                if (_error != null)
-                  Text(
-                    _error!,
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.w700,
                     ),
-                  ),
-                const SizedBox(height: 30),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    for (final d in ['1', '2', '3', '4', '5', '6', '7', '8', '9'])
-                      _btn(d, () => _onDigit(d)),
-                    const SizedBox(width: 84),
-                    _btn('0', () => _onDigit('0')),
-                    _btnIcon(Icons.backspace, _back),
                   ],
-                ),
-              ],
-            ],
+                  if (showPin) ...[
+                    const SizedBox(height: 22),
+                    const Text(
+                      'oppure inserisci il PIN',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(4, (i) {
+                        final filled = i < _input.length;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 120),
+                          width: 18,
+                          height: 18,
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: filled
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.28),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.35),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 22,
+                      child: _error == null
+                          ? null
+                          : Text(
+                              _error!,
+                              style: const TextStyle(
+                                color: Color(0xFFFFD6D6),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        for (final d
+                            in ['1', '2', '3', '4', '5', '6', '7', '8', '9'])
+                          _btn(d, () => _onDigit(d)),
+                        const SizedBox(width: 84, height: 84),
+                        _btn('0', () => _onDigit('0')),
+                        _btnIcon(Icons.backspace_rounded, _back),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -172,10 +256,15 @@ class _AppLockScreenState extends State<AppLockScreen> {
         style: ElevatedButton.styleFrom(
           shape: const CircleBorder(),
           backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF111827),
+          elevation: 0,
         ),
         child: Text(
           text,
-          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
     );
@@ -190,8 +279,10 @@ class _AppLockScreenState extends State<AppLockScreen> {
         style: ElevatedButton.styleFrom(
           shape: const CircleBorder(),
           backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF111827),
+          elevation: 0,
         ),
-        child: Icon(icon),
+        child: Icon(icon, size: 28),
       ),
     );
   }

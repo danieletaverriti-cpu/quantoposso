@@ -618,7 +618,7 @@ Expanded(
                         Expanded(
                           child: _MiniStatCard(
                             icon: Icons.account_balance_wallet,
-                            title: 'Rimane',
+                            title: 'Residuo',
                             value: euro.format(snap.monthRemaining),
                             gradient: const LinearGradient(
                               colors: [Color(0xFF7C3AED), Color(0xFF2563EB)],
@@ -1015,25 +1015,31 @@ class _MiniStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isSmall = MediaQuery.of(context).size.width < 390;
 
     return _GlassCard(
       radius: 18,
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: EdgeInsets.all(isSmall ? 8 : 10),
         child: Row(
           children: [
             Container(
-              width: 38,
-              height: 38,
+              width: isSmall ? 34 : 38,
+              height: isSmall ? 34 : 38,
               decoration: BoxDecoration(
                 gradient: gradient,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: Colors.white, size: 20),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: isSmall ? 18 : 20,
+              ),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: isSmall ? 8 : 10),
             Expanded(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -1042,6 +1048,7 @@ class _MiniStatCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w800,
+                      fontSize: isSmall ? 12 : 13,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1053,6 +1060,7 @@ class _MiniStatCard extends StatelessWidget {
                       maxLines: 1,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w900,
+                        fontSize: isSmall ? 14 : 16,
                       ),
                     ),
                   ),
@@ -1081,28 +1089,50 @@ class _PillAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmall = MediaQuery.of(context).size.width < 390;
+
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: gradient,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: ElevatedButton.icon(
+      child: ElevatedButton(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: EdgeInsets.symmetric(
+            horizontal: isSmall ? 8 : 12,
+            vertical: isSmall ? 10 : 12,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(999),
           ),
         ),
-        icon: Icon(icon, color: Colors.white, size: 18),
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: Colors.white,
+              size: isSmall ? 18 : 20,
+            ),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: isSmall ? 11 : 12,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
