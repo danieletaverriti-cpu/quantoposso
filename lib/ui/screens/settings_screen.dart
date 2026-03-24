@@ -196,13 +196,14 @@ Future<void> _clearAvatar() async {
     final snap = _computeBudget();
     final dayAllowance = snap.dayAllowance;
     final spentToday = _spentToday();
+    final todayRemaining = dayAllowance - spentToday;
 
     // Mattina
     if (s.morningBudgetEnabled) {
       await NotificationsService.instance.scheduleMorningBudget(
         hour: s.morningBudgetHour,
         minute: s.morningBudgetMinute,
-        dayAllowance: dayAllowance,
+        todayRemaining: todayRemaining ,
       );
     } else {
       await NotificationsService.instance.cancelMorningBudget();
@@ -1139,12 +1140,104 @@ class _TermsPage extends StatelessWidget {
 class ToolsScreen extends StatefulWidget {
   final AppState state;
   const ToolsScreen({super.key, required this.state});
+  
 
   @override
   State<ToolsScreen> createState() => _ToolsScreenState();
 }
 
 class _ToolsScreenState extends State<ToolsScreen> {
+   bool _showBackupInfo = false;
+
+Widget _backupInfoCard(ThemeData theme) {
+  return _GlassCard(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              setState(() {
+                _showBackupInfo = !_showBackupInfo;
+              });
+            },
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Come funziona il backup?',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Icon(
+                  _showBackupInfo
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: Colors.grey.shade700,
+                ),
+              ],
+            ),
+          ),
+          if (_showBackupInfo) ...[
+            const SizedBox(height: 14),
+            Text(
+              'QuantoPosso salva automaticamente una copia locale dei tuoi dati sul dispositivo ogni volta che modifichi spese, entrate, uscite fisse, obiettivi o impostazioni.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Questo ti permette di:',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const _BackupBullet(text: 'ripristinare rapidamente l’ultimo backup automatico'),
+            const _BackupBullet(text: 'esportare un backup manuale quando vuoi'),
+            const _BackupBullet(text: 'importare un backup salvato in precedenza'),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                'Importante: il backup automatico è locale. Se disinstalli l’app o azzeri il dispositivo, i backup automatici potrebbero non essere recuperabili. Per maggiore sicurezza usa anche “Crea backup”.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  height: 1.4,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF92400E),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
 
   Future<void> _showBusyDialog({
     required String text,
@@ -1233,6 +1326,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
     return result ?? false;
   }
 
+  
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1294,6 +1388,10 @@ class _ToolsScreenState extends State<ToolsScreen> {
                     children: [
 
                       const SizedBox(height: 8),
+
+                      _backupInfoCard(theme),
+
+                      const SizedBox(height: 12),
 
                       _GlassCard(
                         child: Column(
@@ -1440,6 +1538,45 @@ class _ToolsScreenState extends State<ToolsScreen> {
     );
   }
 }
+
+class _BackupBullet extends StatelessWidget {
+  final String text;
+
+  const _BackupBullet({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Icon(
+              Icons.check_circle_rounded,
+              size: 16,
+              color: Color(0xFF16A34A),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ToolTile extends StatelessWidget {
   final IconData icon;
   final Gradient gradient;

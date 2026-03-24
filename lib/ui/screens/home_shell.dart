@@ -23,7 +23,7 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int index = 0;
   int addMode = 0; // 0 = spesa, 1 = entrata 
-  bool _locked = true;
+  bool _locked = false; //da mettere true per riattivare il blocco con codice o faceid
   bool _isCheckingLock = false;
 
 @override
@@ -31,9 +31,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkLock();
-    });
+    //WidgetsBinding.instance.addPostFrameCallback((_) {
+    //  _checkLock();
+   // });
   }
 
   @override
@@ -42,12 +42,13 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     super.dispose();
   }
 
+//da togliere commenti per riattivare blocco pin/facedid/figerprint
 @override
 void didChangeAppLifecycleState(AppLifecycleState state) {
-  if (state == AppLifecycleState.paused ||
-      state == AppLifecycleState.inactive) {
-    _locked = true;
-  }
+ // if (state == AppLifecycleState.paused ||
+   //   state == AppLifecycleState.inactive) {
+    //_locked = true;
+ // }
 
   if (state == AppLifecycleState.resumed) {
     WidgetsBinding.instance.addPostFrameCallback((_) {

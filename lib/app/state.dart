@@ -415,10 +415,10 @@ Future<void> addFixed(FixedExpense e) async {
 
     if (settings.morningBudgetEnabled) {
       await NotificationsService.instance.scheduleMorningBudget(
-        hour: settings.morningBudgetHour,
-        minute: settings.morningBudgetMinute,
-        dayAllowance: dayAllowance,
-      );
+  hour: settings.morningBudgetHour,
+  minute: settings.morningBudgetMinute,
+  todayRemaining: snap.todayRemaining,
+);
     } else {
       await NotificationsService.instance.cancelMorningBudget();
     }
