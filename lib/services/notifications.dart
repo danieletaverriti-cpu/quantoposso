@@ -258,23 +258,23 @@ class NotificationsService {
   // -------------------- MATTINA: BUDGET DI OGGI --------------------
 
   Future<void> scheduleMorningBudget({
-    required int hour,
-    required int minute,
-    required double dayAllowance,
-  }) async {
-    final when = _nextInstance(hour, minute);
+  required int hour,
+  required int minute,
+  required double todayRemaining,
+}) async {
+  final when = _nextInstance(hour, minute);
 
-    await _plugin.zonedSchedule(
-      id: _morningId,
-      title: 'Quanto Posso',
-      body: 'Oggi puoi spendere ~ ${_euro(dayAllowance)}€ 💡',
-      scheduledDate: when,
-      notificationDetails: _morningDetails(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-      payload: payloadOpenAddExpense,
-    );
-  }
+  await _plugin.zonedSchedule(
+    id: _morningId,
+    title: 'Quanto Posso',
+    body: 'Oggi puoi spendere ~ ${_euro(todayRemaining)}€ 💡',
+    scheduledDate: when,
+    notificationDetails: _morningDetails(),
+    androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    matchDateTimeComponents: DateTimeComponents.time,
+    payload: payloadOpenAddExpense,
+  );
+}
 // -------------------- LEGACY (usato da state.dart) --------------------
 /// NON rimuovere: serve per compatibilità con state.dart
 Future<void> scheduleDailyBudgetReminder({
