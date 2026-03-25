@@ -765,7 +765,7 @@ Row(
 
 
 const SizedBox(height: 12),
-
+/*
 _GlassCard(
   child: Padding(
     padding: const EdgeInsets.all(14),
@@ -919,7 +919,7 @@ _GlassCard(
   ),
 ),
 
-
+*/ //da rimuovere commento a inizio e fine per sbloccare funzione nel settings 
 
                   const SizedBox(height: 12),
 _GlassCard(
@@ -1103,16 +1103,46 @@ class _SupportPage extends StatelessWidget {
 class _PrivacyPage extends StatelessWidget {
   const _PrivacyPage();
 
+  Future<void> _openPrivacy(BuildContext context) async {
+    final uri = Uri.parse(
+      'https://victorious-argon-075.notion.site/Privacy-Policy-Quanto-Posso-32cdb36f4b6080e4b1dae80dd3b5aa7c',
+    );
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Impossibile aprire la Privacy Policy')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Privacy Policy')),
-      body: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text(
-          'Quanto Posso non raccoglie dati personali.\n\n'
-          'Le informazioni inserite nell\'app vengono salvate '
-          'principalmente sul dispositivo dell\'utente.',
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Consulta la Privacy Policy completa al link qui sotto.',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: () => _openPrivacy(context),
+              icon: const Icon(Icons.open_in_new_rounded),
+              label: const Text('Apri Privacy Policy'),
+            ),
+          ],
         ),
       ),
     );
@@ -1120,18 +1150,47 @@ class _PrivacyPage extends StatelessWidget {
 }
 class _TermsPage extends StatelessWidget {
   const _TermsPage();
-  
+
+  Future<void> _openTerms(BuildContext context) async {
+    final uri = Uri.parse(
+      'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
+    );
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Impossibile aprire i Termini di utilizzo')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Termini e condizioni')),
-      body: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text(
-          'Quanto Posso è un\'app di supporto alla gestione '
-          'del budget personale.\n\n'
-          'L\'app non fornisce consulenza finanziaria.',
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Quanto Posso utilizza i Termini di utilizzo standard Apple per gli abbonamenti auto-rinnovabili.',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: () => _openTerms(context),
+              icon: const Icon(Icons.open_in_new_rounded),
+              label: const Text('Apri Termini di utilizzo'),
+            ),
+          ],
         ),
       ),
     );

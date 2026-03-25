@@ -123,19 +123,40 @@ class _ProScreenState extends State<ProScreen>
   }
 
   Future<void> _openPrivacyPolicy() async {
-  final uri = Uri.parse('https://victorious-argon-075.notion.site/Privacy-Policy-Quanto-Posso-32cdb36f4b6080e4b1dae80dd3b5aa7c');
+  final uri = Uri.parse(
+    'https://victorious-argon-075.notion.site/Privacy-Policy-Quanto-Posso-32cdb36f4b6080e4b1dae80dd3b5aa7c',
+  );
+
   if (await canLaunchUrl(uri)) {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+    return;
   }
+
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Impossibile aprire la Privacy Policy'),
+    ),
+  );
 }
 
 Future<void> _openTerms() async {
-  final uri = Uri.parse('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/');
+  final uri = Uri.parse(
+    'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
+  );
+
   if (await canLaunchUrl(uri)) {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+    return;
   }
-}
 
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Impossibile aprire i Termini di utilizzo'),
+    ),
+  );
+}
   Future<void> _startTrial() async {
   try {
     await IapService.instance.buyMonthly();
@@ -440,8 +461,7 @@ Text(
                           const SizedBox(height: 14),
                           _PlanCard(
                             title: 'Annuale',
-                            subtitle: 
-                                'Miglior rapporto qualità/prezzo',
+                            subtitle: 'Accesso completo annuale a tutte le funzioni PRO',
                             price: yearly?.price ?? '—',
                             buttonText: 'Scegli',
                             badge: 'PIÙ POPOLARE',
@@ -469,6 +489,15 @@ Text(
 
 const SizedBox(height: 6),
 
+Text(
+  'Informazioni legali',
+  textAlign: TextAlign.center,
+  style: theme.textTheme.bodyMedium?.copyWith(
+    fontWeight: FontWeight.w800,
+    color: const Color(0xFF6B7280),
+  ),
+),
+const SizedBox(height: 4),
 // 🔗 LINK OBBLIGATORI (Apple)
 Wrap(
   alignment: WrapAlignment.center,
@@ -503,18 +532,18 @@ const SizedBox(height: 6),
 
 // 📄 TESTO LEGALE OBBLIGATORIO
 Text(
-  'Abbonamento mensile: 1 mese a ${monthly?.price ?? '—'}. '
-  'Abbonamento annuale: 1 anno a ${yearly?.price ?? '—'}. '
+  'QuantoPosso PRO Mensile: durata 1 mese, prezzo ${monthly?.price ?? '—'}. '
+  'QuantoPosso PRO Annuale: durata 1 anno, prezzo ${yearly?.price ?? '—'}. '
   'Il pagamento verrà addebitato sull’Apple ID alla conferma dell’acquisto. '
   'L’abbonamento si rinnova automaticamente salvo disdetta almeno 24 ore prima della scadenza. '
   'Il rinnovo verrà addebitato entro le 24 ore precedenti la fine del periodo corrente. '
   'Puoi gestire o annullare l’abbonamento dalle impostazioni del tuo account Apple. '
-  'Eventuale periodo di prova gratuito verrà annullato se acquisti un abbonamento.',
+  'Eventuale periodo di prova gratuito, se disponibile, verrà annullato quando acquisti un abbonamento.',
   textAlign: TextAlign.center,
   style: theme.textTheme.bodySmall?.copyWith(
-  color: const Color(0xFF6B7280),
-  height: 1.4,
-),
+    color: const Color(0xFF6B7280),
+    height: 1.4,
+  ),
 ),
                    Text(
   'L’abbonamento si rinnova automaticamente salvo disattivazione dalle impostazioni dello store.',
