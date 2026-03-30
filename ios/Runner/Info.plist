@@ -7,7 +7,11 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>L'accesso alle foto è necessario per consentire all'utente di scegliere un'immagine profilo nell'app.</string>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
+    <string>it</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+	<string>it</string>
+    </array>
 	<key>CFBundleDisplayName</key>
 	<string>Quantoposso</string>
 	<key>CFBundleExecutable</key>
