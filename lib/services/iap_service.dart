@@ -32,6 +32,30 @@ class IapService {
     }
   }
 
+  Future<void> reloadProducts() async {
+  final available = await _iap.isAvailable();
+  print('IAP RELOAD AVAILABLE -> $available');
+
+  if (!available) {
+    _products = [];
+    return;
+  }
+
+  final response = await _iap.queryProductDetails({
+    monthlyId,
+    yearlyId,
+  });
+
+  print('IAP RELOAD FOUND -> ${response.productDetails.map((e) => e.id).toList()}');
+  print('IAP RELOAD NOT FOUND -> ${response.notFoundIDs}');
+  print('IAP RELOAD ERROR -> ${response.error}');
+
+  _products = response.productDetails;
+
+  print('MONTHLY LOADED -> ${monthlyProduct?.id}');
+  print('YEARLY LOADED -> ${yearlyProduct?.id}');
+}
+
   Future<void> init(AppState state) async {
     await _subscription?.cancel();
     _subscription = null;
@@ -44,23 +68,14 @@ class IapService {
       return;
     }
 
-    final response = await _iap.queryProductDetails({
-      monthlyId,
-      yearlyId,
-    });
+await reloadProducts();
 
-    print('IAP FOUND -> ${response.productDetails.map((e) => e.id).toList()}');
-    print('IAP NOT FOUND -> ${response.notFoundIDs}');
-    print('IAP RESPONSE ERROR -> ${response.error}');
-
-    for (final product in response.productDetails) {
-      print('PRODUCT -> ${product.id}');
-      print('PRICE -> ${product.price}');
-      print('RAW PRICE -> ${product.rawPrice}');
-      print('CURRENCY CODE -> ${product.currencyCode}');
-    }
-
-    _products = response.productDetails;
+for (final product in _products) {
+  print('PRODUCT -> ${product.id}');
+  print('PRICE -> ${product.price}');
+  print('RAW PRICE -> ${product.rawPrice}');
+  print('CURRENCY CODE -> ${product.currencyCode}');
+}
 
     _subscription = _iap.purchaseStream.listen(
       (purchases) async {
